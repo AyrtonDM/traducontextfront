@@ -61,6 +61,40 @@ For more information on using the Angular CLI, including detailed command refere
 
 # SOBRE LA ORGANIZACION DE LAS CARPETAS
 
+src/ 
+??? app/ 
+? ??? core/ 
+? ? ??? configuration/ 
+? ? ??? services/ 
+? ? ??? interceptors/ 
+? ? ??? guards/ 
+? ? 
+? ??? components/ 
+? ? 
+? ??? views/ 
+? ? 
+? ??? shared/ 
+? ? ??? constants/
+? ? ??? utilities/ 
+? ? ??? types/ 
+? ? 
+? ??? app.component.ts 
+? ??? app.routes.ts 
+? 
+??? assets/ 
+? ??? imagenes/ 
+? ??? iconos/ 
+? ??? fuentes/ 
+? 
+??? environments/ 
+? ??? environment.ts 
+? ??? environment.development.ts 
+? 
+??? styles.css 
+??? main.ts
+
+
+
 # src/app/core/
 
 Contiene la lógica y los elementos centrales de la aplicación.
@@ -110,7 +144,7 @@ Procesar operaciones reutilizadas por varias vistas.
 
 Las vistas no deben realizar directamente las peticiones HTTP al backend cuando estas puedan ser encapsuladas en un servicio.
 
-# core/interceptores/
+# core/interceptors/
 
 Contiene los interceptores HTTP de Angular.
 
@@ -173,6 +207,7 @@ Selector de idioma.
 Mensajes de error.
 Modales.
 Indicadores de carga.
+
 Regla
 
 Si un componente pertenece exclusivamente a una vista y no tiene sentido reutilizarlo fuera de ella, debe permanecer dentro de la carpeta de esa vista.
