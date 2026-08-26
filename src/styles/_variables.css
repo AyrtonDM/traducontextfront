@@ -1,0 +1,17 @@
+:root {
+    --radio-pequeno: 4px;
+    --radio-medio: 8px;
+    --radio-grande: 16px;
+
+    --espaciado-xs: 4px;
+    --espaciado-sm: 8px;
+    --espaciado-md: 16px;
+    --espaciado-lg: 24px;
+    --espaciado-xl: 32px;
+
+    --sombra-suave: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+    --ancho-contenedor: 1200px;
+
+    --transicion: 0.2s ease;
+}
