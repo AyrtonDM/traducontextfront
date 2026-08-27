@@ -1,9 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { AutenticacionService } from '../../../core/services/autenticacion.service';
-
 
 @Component({
   selector: 'app-verificar-correo',
@@ -11,31 +10,36 @@ import { AutenticacionService } from '../../../core/services/autenticacion.servi
   templateUrl: './verificar_correo.html',
   styleUrl: './verificar_correo.css',
 })
-export class VerificarCorreo {
+export class VerificarCorreo implements OnInit {
+  private readonly formBuilder = inject(FormBuilder);
+  private readonly authService = inject(AutenticacionService);
+  private readonly router = inject(Router);
+
   verificationSubmitted = false;
   codeResent = false;
+  mensajeError: string | null = null;
+  mensajeExito: string | null = null;
+  cargando = false;
 
-  readonly verificacionForm;
+  readonly verificacionForm = this.formBuilder.nonNullable.group({
+    codigo: [
+      '',
+      [
+        Validators.required,
+        Validators.pattern(/^\d{6}$/),
+      ],
+    ],
+  });
 
-  // Temporalmente usamos un correo de ejemplo.
-  // Posteriormente vendrá del flujo de registro o del backend.
   correo = '';
 
-  constructor(
-    private readonly formBuilder: FormBuilder,
-    private readonly route: ActivatedRoute,
-    private readonly autenticacionService: AutenticacionService
-  ) {
-    this.correo = this.route.snapshot.queryParamMap.get('correo') ?? '';
-    this.verificacionForm = this.formBuilder.nonNullable.group({
-      codigo: [
-        '',
-        [
-          Validators.required,
-          Validators.pattern(/^\d{6}$/),
-        ],
-      ],
-    });
+  ngOnInit(): void {
+    const guardado = localStorage.getItem('correo_verificar');
+    if (guardado) {
+      this.correo = guardado;
+    } else {
+      this.correo = 'carrascocinthia033@gmail.com';
+    }
   }
 
   get codigo() {
@@ -44,39 +48,45 @@ export class VerificarCorreo {
 
   verificarCorreo(): void {
     this.verificationSubmitted = true;
+    this.mensajeError = null;
+    this.mensajeExito = null;
 
     if (this.verificacionForm.invalid) {
       this.verificacionForm.markAllAsTouched();
       return;
     }
 
-    const datos = {
-      correo: this.correo,
-      codigo: this.codigo.value
-    };
+    this.cargando = true;
+    const codigoVal = this.codigo.value;
 
-    this.autenticacionService.verificarCodigo(datos).subscribe({
-      next: () => {
-        console.log('Correo verificado correctamente');
-
-        // Aqu� posteriormente iremos a la siguiente pantalla.
+    this.authService.verificarCodigo({ correo: this.correo, codigo: codigoVal }).subscribe({
+      next: (respuesta: any) => {
+        this.cargando = false;
+        this.mensajeExito = respuesta.mensaje || '¡Cuenta verificada con éxito!';
+        localStorage.removeItem('correo_verificar');
+        setTimeout(() => {
+          this.router.navigate(['/login']);
+        }, 2500);
       },
-
-      error: (error) => {
-        console.error('Error al verificar correo:', error);
+      error: (err) => {
+        this.cargando = false;
+        this.mensajeError = err.error?.detail || 'El código ingresado es incorrecto o ha expirado.';
       }
     });
   }
 
   reenviarCodigo(): void {
+    this.mensajeError = null;
+    this.mensajeExito = null;
     this.codeResent = false;
 
-    this.autenticacionService.reenviarCodigo(this.correo).subscribe({
-      next: () => {
+    this.authService.reenviarCodigo(this.correo).subscribe({
+      next: (respuesta: any) => {
         this.codeResent = true;
+        this.mensajeExito = respuesta.mensaje || 'Se ha solicitado un nuevo código.';
       },
-      error: (error) => {
-        console.error('Error al reenviar c�digo:', error);
+      error: (err) => {
+        this.mensajeError = err.error?.detail || 'No se pudo reenviar el código.';
       }
     });
   }

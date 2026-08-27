@@ -37,4 +37,11 @@ export class AutenticacionService {
       { correo }
     );
   }
+
+  iniciarSesion(correo: string, contrasena: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.apiUrl}/autenticacion/iniciar-sesion`,
+      { correo, contrasena }
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
+import { AutenticacionService } from '../../../core/services/autenticacion.service';
 
 @Component({
   selector: 'app-inicio-sesion',
@@ -11,6 +12,8 @@ import { RouterLink } from '@angular/router';
 })
 export class InicioSesion {
   private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AutenticacionService);
+  private readonly router = inject(Router);
 
   readonly loginForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -52,13 +55,21 @@ export class InicioSesion {
 
     const { email, password } = this.loginForm.getRawValue();
 
-    setTimeout(() => {
-      this.isLoading = false;
-
-      if (email && password) {
-        this.backendError = '';
-        this.loginForm.reset({ email: '', password: '' });
+    this.authService.iniciarSesion(email, password).subscribe({
+      next: (respuesta) => {
+        this.isLoading = false;
+        // Se guarda el token retornado en la clave resultado que es una lista con el token
+        if (respuesta.resultado && respuesta.resultado.length > 0) {
+          const token = respuesta.resultado[0].token;
+          localStorage.setItem('auth_token', token);
+        }
+        // Redirige al panel principal/home una vez logueado
+        this.router.navigate(['/']);
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.backendError = err.error?.detail || 'Correo o contraseña incorrectos.';
       }
-    }, 600);
+    });
   }
 }
