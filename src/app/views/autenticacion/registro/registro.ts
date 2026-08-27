@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AutenticacionService } from '../../../core/services/autenticacion.service';
 
 @Component({
   selector: 'app-registro',
@@ -16,7 +17,8 @@ export class Registro {
 
   constructor(
     private readonly formBuilder: FormBuilder,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly autenticacionService: AutenticacionService
   ) {
     this.registroForm = this.formBuilder.nonNullable.group({
       nombre: [
@@ -58,8 +60,21 @@ export class Registro {
       return;
     }
 
-    // Temporalmente simulamos que el registro fue exitoso.
-    this.router.navigate(['/verificar_correo']);
+    const datos = this.registroForm.getRawValue();
+
+    this.autenticacionService.registrarUsuario(datos).subscribe({
+      next: () => {
+        this.router.navigate(['/verificar_correo'], {
+          queryParams: {
+            correo: datos.correo
+          }
+        });
+      },
+
+      error: (error) => {
+        console.error('Error al registrar usuario:', error);
+      }
+    });
   }
 
   campoInvalido(campo: { invalid: boolean; touched: boolean }): boolean {

@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { AutenticacionService } from '../../../core/services/autenticacion.service';
+
 
 @Component({
   selector: 'app-verificar-correo',
@@ -16,9 +19,14 @@ export class VerificarCorreo {
 
   // Temporalmente usamos un correo de ejemplo.
   // Posteriormente vendrá del flujo de registro o del backend.
-  correo = 'usuario@gmail.com';
+  correo = '';
 
-  constructor(private readonly formBuilder: FormBuilder) {
+  constructor(
+    private readonly formBuilder: FormBuilder,
+    private readonly route: ActivatedRoute,
+    private readonly autenticacionService: AutenticacionService
+  ) {
+    this.correo = this.route.snapshot.queryParamMap.get('correo') ?? '';
     this.verificacionForm = this.formBuilder.nonNullable.group({
       codigo: [
         '',
@@ -42,14 +50,35 @@ export class VerificarCorreo {
       return;
     }
 
-    // Aquí posteriormente se conectará con el backend.
+    const datos = {
+      correo: this.correo,
+      codigo: this.codigo.value
+    };
+
+    this.autenticacionService.verificarCodigo(datos).subscribe({
+      next: () => {
+        console.log('Correo verificado correctamente');
+
+        // Aqu� posteriormente iremos a la siguiente pantalla.
+      },
+
+      error: (error) => {
+        console.error('Error al verificar correo:', error);
+      }
+    });
   }
 
   reenviarCodigo(): void {
-    this.codeResent = true;
+    this.codeResent = false;
 
-    // Aquí posteriormente se solicitará al backend
-    // el reenvío del código de verificación.
+    this.autenticacionService.reenviarCodigo(this.correo).subscribe({
+      next: () => {
+        this.codeResent = true;
+      },
+      error: (error) => {
+        console.error('Error al reenviar c�digo:', error);
+      }
+    });
   }
 
   campoInvalido(campo: { invalid: boolean; touched: boolean }): boolean {
