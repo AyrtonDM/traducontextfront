@@ -1,0 +1,26 @@
+<main class="login-page">
+	<form class="login-card" (ngSubmit)="iniciarSesion()">
+		<h1>TraduContext</h1>
+		<p>Inicia sesion para continuar.</p>
+
+		<label for="correo">Correo</label>
+		<input id="correo" name="correo" type="email" [(ngModel)]="correo" required />
+
+		<label for="contrasena">Contrasena</label>
+		<input
+			id="contrasena"
+			name="contrasena"
+			type="password"
+			[(ngModel)]="contrasena"
+			required
+		/>
+
+		<button type="submit" [disabled]="cargando">
+			{{ cargando ? 'Iniciando...' : 'Iniciar sesion' }}
+		</button>
+
+		@if (mensaje) {
+			<p class="message" role="status">{{ mensaje }}</p>
+		}
+	</form>
+</main>
