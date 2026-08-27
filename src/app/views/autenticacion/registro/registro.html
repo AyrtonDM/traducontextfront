@@ -1,0 +1,87 @@
+<main class="registro-page">
+  <section class="registro-card" aria-labelledby="registro-titulo">
+    <div class="registro-header">
+      <h1 id="registro-titulo">Crear cuenta</h1>
+      <p>Regístrate para empezar</p>
+    </div>
+
+    <form
+      class="registro-form"
+      [formGroup]="registroForm"
+      (ngSubmit)="registrar()"
+      novalidate
+    >
+      <div class="form-field">
+        <label for="nombre">Nombre completo</label>
+
+        <input
+          id="nombre"
+          type="text"
+          formControlName="nombre"
+          placeholder="Tu nombre"
+          autocomplete="name"
+          [class.input-error]="campoInvalido(nombre)"
+        />
+
+        @if (campoInvalido(nombre)) {
+          <small>
+            @if (nombre.hasError('required')) {
+              El nombre es obligatorio.
+            } @else if (nombre.hasError('minlength')) {
+              El nombre debe tener al menos 3 caracteres.
+            } @else {
+              El nombre no puede superar los 80 caracteres.
+            }
+          </small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="correo">Correo electrónico</label>
+
+        <input
+          id="correo"
+          type="email"
+          formControlName="correo"
+          placeholder="ejemplo@correo.com"
+          autocomplete="email"
+          [class.input-error]="campoInvalido(correo)"
+        />
+
+        @if (campoInvalido(correo)) {
+          <small>Ingresa un correo válido.</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="contrasena">Contraseña</label>
+
+        <input
+          id="contrasena"
+          type="password"
+          formControlName="contrasena"
+          placeholder="********"
+          autocomplete="new-password"
+          [class.input-error]="campoInvalido(contrasena)"
+        />
+
+        @if (campoInvalido(contrasena)) {
+          <small>
+            Mínimo 8 caracteres, con al menos una letra y un número.
+          </small>
+        }
+      </div>
+
+      <div class="acciones">
+        <button class="primary-button" type="submit">
+          Registrarse
+        </button>
+      </div>
+    </form>
+
+    <p class="login-link">
+      ¿Ya tienes cuenta?
+      <a href="/login">Iniciar sesión</a>
+    </p>
+  </section>
+</main>
