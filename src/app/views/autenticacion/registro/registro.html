@@ -2,12 +2,18 @@
   <section class="registro-card" aria-labelledby="registro-titulo">
     <div class="registro-header">
       <h1 id="registro-titulo">Crear cuenta</h1>
-      <p>Reg&iacute;strate para empezar</p>
+      <p>Regístrate para empezar</p>
     </div>
 
-    <form class="registro-form" [formGroup]="registroForm" (ngSubmit)="registrar()" novalidate>
+    <form
+      class="registro-form"
+      [formGroup]="registroForm"
+      (ngSubmit)="registrar()"
+      novalidate
+    >
       <div class="form-field">
         <label for="nombre">Nombre completo</label>
+
         <input
           id="nombre"
           type="text"
@@ -16,19 +22,23 @@
           autocomplete="name"
           [class.input-error]="campoInvalido(nombre)"
         />
+
         @if (campoInvalido(nombre)) {
           <small>
             @if (nombre.hasError('required')) {
               El nombre es obligatorio.
+            } @else if (nombre.hasError('minlength')) {
+              El nombre debe tener al menos 3 caracteres.
             } @else {
-              Debe tener entre 2 y 100 caracteres.
+              El nombre no puede superar los 80 caracteres.
             }
           </small>
         }
       </div>
 
       <div class="form-field">
-        <label for="correo">Correo electr&oacute;nico</label>
+        <label for="correo">Correo electrónico</label>
+
         <input
           id="correo"
           type="email"
@@ -37,13 +47,15 @@
           autocomplete="email"
           [class.input-error]="campoInvalido(correo)"
         />
+
         @if (campoInvalido(correo)) {
-          <small>Ingresa un correo v&aacute;lido.</small>
+          <small>Ingresa un correo válido.</small>
         }
       </div>
 
       <div class="form-field">
-        <label for="contrasena">Contrase&ntilde;a</label>
+        <label for="contrasena">Contraseña</label>
+
         <input
           id="contrasena"
           type="password"
@@ -52,82 +64,24 @@
           autocomplete="new-password"
           [class.input-error]="campoInvalido(contrasena)"
         />
+
         @if (campoInvalido(contrasena)) {
-          <small>M&iacute;nimo 8 caracteres, con al menos una letra y un n&uacute;mero.</small>
+          <small>
+            Mínimo 8 caracteres, con al menos una letra y un número.
+          </small>
         }
       </div>
 
       <div class="acciones">
-        <button class="primary-button" type="submit">Registrarse</button>
-        <button class="secondary-button" type="button" (click)="abrirModalVerificacion()">
-          Verificar correo
+        <button class="primary-button" type="submit">
+          Registrarse
         </button>
       </div>
     </form>
 
-    <p class="login-link">&iquest;Ya tienes cuenta? <a href="/login">Iniciar sesi&oacute;n</a></p>
+    <p class="login-link">
+      ¿Ya tienes cuenta?
+      <a href="/login">Iniciar sesión</a>
+    </p>
   </section>
 </main>
-
-@if (verificationModalOpen) {
-  <div class="modal-backdrop" role="presentation" (click)="cerrarModalVerificacion()">
-    <section
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="verificacion-titulo"
-      (click)="$event.stopPropagation()"
-    >
-      <button
-        class="close-button"
-        type="button"
-        aria-label="Cerrar modal"
-        (click)="cerrarModalVerificacion()"
-      >
-        x
-      </button>
-
-      <h2 id="verificacion-titulo">Verificar correo</h2>
-      <p>Ingresa el correo y el c&oacute;digo de verificaci&oacute;n.</p>
-
-      <form
-        class="registro-form"
-        [formGroup]="verificacionForm"
-        (ngSubmit)="verificarCorreo()"
-        novalidate
-      >
-        <div class="form-field">
-          <label for="correo-verificacion">Correo electr&oacute;nico</label>
-          <input
-            id="correo-verificacion"
-            type="email"
-            formControlName="correo"
-            placeholder="ejemplo@correo.com"
-            autocomplete="email"
-            [class.input-error]="campoVerificacionInvalido(correoVerificacion)"
-          />
-          @if (campoVerificacionInvalido(correoVerificacion)) {
-            <small>El correo es obligatorio y debe tener formato v&aacute;lido.</small>
-          }
-        </div>
-
-        <div class="form-field">
-          <label for="codigo-verificacion">C&oacute;digo de verificaci&oacute;n</label>
-          <input
-            id="codigo-verificacion"
-            type="text"
-            formControlName="codigo"
-            placeholder="Ingresa tu c&oacute;digo"
-            autocomplete="one-time-code"
-            [class.input-error]="campoVerificacionInvalido(codigoVerificacion)"
-          />
-          @if (campoVerificacionInvalido(codigoVerificacion)) {
-            <small>El c&oacute;digo de verificaci&oacute;n es obligatorio.</small>
-          }
-        </div>
-
-        <button class="primary-button" type="submit">Verificar</button>
-      </form>
-    </section>
-  </div>
-}
