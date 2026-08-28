@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AutenticacionService } from '../../../core/services/autenticacion.service';
 
 @Component({
@@ -14,6 +14,7 @@ export class VerificarCorreo implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AutenticacionService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   verificationSubmitted = false;
   codeResent = false;
@@ -34,12 +35,7 @@ export class VerificarCorreo implements OnInit {
   correo = '';
 
   ngOnInit(): void {
-    const guardado = localStorage.getItem('correo_verificar');
-    if (guardado) {
-      this.correo = guardado;
-    } else {
-      this.correo = 'carrascocinthia033@gmail.com';
-    }
+     this.correo = this.route.snapshot.queryParamMap.get('correo') ?? '';
   }
 
   get codigo() {
@@ -62,7 +58,7 @@ export class VerificarCorreo implements OnInit {
     this.authService.verificarCodigo({ correo: this.correo, codigo: codigoVal }).subscribe({
       next: (respuesta: any) => {
         this.cargando = false;
-        this.mensajeExito = respuesta.mensaje || '¡Cuenta verificada con éxito!';
+        this.mensajeExito = respuesta.mensaje || '�Cuenta verificada con exito!';
         localStorage.removeItem('correo_verificar');
         setTimeout(() => {
           this.router.navigate(['/login']);

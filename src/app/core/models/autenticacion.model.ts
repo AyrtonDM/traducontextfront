@@ -8,3 +8,8 @@ export interface VerificarCodigo {
   correo: string;
   codigo: string;
 }
+
+export interface InicioSesion {
+  correo: string;
+  contrasena: string;
+}
