@@ -73,8 +73,8 @@
       </div>
 
       <div class="acciones">
-        <button class="primary-button" type="submit">
-          Registrarse
+        <button class="primary-button" type="submit" [disabled]="registroForm.invalid || isLoading">
+          {{ isLoading ? 'Registrando...' : 'Registrarse' }}
         </button>
       </div>
     </form>

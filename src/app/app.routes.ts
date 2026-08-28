@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { InicioSesion } from './views/autenticacion/inicio_sesion/inicio_sesion';
 import { Registro } from './views/autenticacion/registro/registro';
 import { VerificarCorreo } from './views/autenticacion/verificar_correo/verificar_correo';
+import { RecuperacionContrasena } from './views/autenticacion/recuperacion_contrasena/recuperacion_contrasena.';
 
 import { Inicio } from './views/inicio/inicio';
 
@@ -24,6 +25,10 @@ export const routes: Routes = [
   {
     path: 'verificar_correo',
     component: VerificarCorreo,
+  },
+  {
+    path: 'recuperar-password',
+    component: RecuperacionContrasena,
   },
   {
     path: '',

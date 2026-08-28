@@ -38,6 +38,27 @@ export class AutenticacionService {
     );
   }
 
+  solicitarRecuperacion(correo: string): Observable<unknown> {
+    return this.http.post<unknown>(
+      `${this.apiUrl}/autenticacion/solicitar-recuperacion`,
+      { correo },
+    );
+  }
+
+  validarCodigoRecuperacion(correo: string, codigo: string): Observable<unknown> {
+    return this.http.post<unknown>(
+      `${this.apiUrl}/autenticacion/validar-codigo-recuperacion`,
+      { correo, codigo },
+    );
+  }
+
+  restablecerContrasena(correo: string, codigo: string, nuevaContrasena: string): Observable<unknown> {
+    return this.http.post<unknown>(
+      `${this.apiUrl}/autenticacion/restablecer-contrasena`,
+      { correo, codigo, nueva_contrasena: nuevaContrasena },
+    );
+  }
+
   iniciarSesion(correo: string, contrasena: string): Observable<any> {
     return this.http.post<any>(
       `${this.apiUrl}/autenticacion/iniciar-sesion`,

@@ -12,6 +12,7 @@ import { AutenticacionService } from '../../../core/services/autenticacion.servi
 })
 export class Registro {
   registerSubmitted = false;
+  isLoading = false;
 
   readonly registroForm;
 
@@ -61,9 +62,11 @@ export class Registro {
     }
 
     const datos = this.registroForm.getRawValue();
+    this.isLoading = true;
 
     this.autenticacionService.registrarUsuario(datos).subscribe({
       next: () => {
+        this.isLoading = false;
         this.router.navigate(['/verificar_correo'], {
           queryParams: {
             correo: datos.correo
@@ -72,6 +75,7 @@ export class Registro {
       },
 
       error: (error) => {
+        this.isLoading = false;
         console.error('Error al registrar usuario:', error);
       }
     });

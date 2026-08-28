@@ -13,13 +13,13 @@
     </div>
 
     @if (mensajeError) {
-      <div class="error-alert" style="color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
+      <div class="error-alert" role="alert">
         {{ mensajeError }}
       </div>
     }
 
     @if (mensajeExito) {
-      <div class="success-alert" style="color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
+      <div class="success-alert" role="status">
         {{ mensajeExito }}
       </div>
     }
@@ -57,8 +57,8 @@
         }
       </div>
 
-      <button class="primary-button" type="submit">
-        Verificar correo
+      <button class="primary-button" type="submit" [disabled]="verificacionForm.invalid || cargando">
+        {{ cargando ? 'Verificando...' : 'Verificar correo' }}
       </button>
     </form>
 
@@ -69,8 +69,9 @@
         class="resend-button"
         type="button"
         (click)="reenviarCodigo()"
+        [disabled]="cargando"
       >
-        Reenviar código
+        {{ cargando ? 'Reenviando...' : 'Reenviar código' }}
       </button>
 
       @if (codeResent) {
