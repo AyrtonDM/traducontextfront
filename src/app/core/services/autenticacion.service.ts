@@ -44,4 +44,11 @@ export class AutenticacionService {
       { correo, contrasena }
     );
   }
+
+  cerrarSesion(): Observable<unknown> {
+    return this.http.post<unknown>(
+      `${this.apiUrl}/autenticacion/cerrar-sesion`,
+      {}
+    );
+  }
 }

@@ -64,7 +64,7 @@ export class InicioSesion {
           localStorage.setItem('auth_token', token);
         }
         // Redirige al panel principal/home una vez logueado
-        this.router.navigate(['/']);
+        this.router.navigate(['/inicio']);
       },
       error: (err) => {
         this.isLoading = false;

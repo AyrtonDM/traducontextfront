@@ -3,7 +3,16 @@ import { InicioSesion } from './views/autenticacion/inicio_sesion/inicio_sesion'
 import { Registro } from './views/autenticacion/registro/registro';
 import { VerificarCorreo } from './views/autenticacion/verificar_correo/verificar_correo';
 
+import { Inicio } from './views/inicio/inicio';
+
+import { Autenticado } from './layouts/autenticado/autenticado';
+
+import { autenticacionGuard } from './core/guards/autenticacion.guard';
 export const routes: Routes = [
+  // ==========================
+  // RUTAS PÚBLICAS
+  // ==========================
+
   {
     path: 'login',
     component: InicioSesion,
@@ -21,8 +30,27 @@ export const routes: Routes = [
     redirectTo: 'login',
     pathMatch: 'full',
   },
+
+  // ==========================
+  // RUTAS AUTENTICADAS
+  // ==========================
+
+  {
+    path: '',
+    component: Autenticado,
+    canActivate: [autenticacionGuard],
+    children: [
+
+      {
+        path: 'inicio',
+        component: Inicio
+      }
+    ]
+  },
+
   {
     path: '**',
     redirectTo: 'login',
   },
+
 ];
