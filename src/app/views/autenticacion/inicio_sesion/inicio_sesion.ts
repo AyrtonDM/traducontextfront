@@ -68,7 +68,7 @@ export class InicioSesion {
       },
       error: (err) => {
         this.isLoading = false;
-        this.backendError = err.error?.detail || 'Correo o contraseña incorrectos.';
+        this.backendError = err.error?.detail || 'Correo o contrasena incorrectos.';
       }
     });
   }

@@ -1,18 +1,48 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, inject, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { UsuarioAutenticado } from '../../core/models/autenticacion.model';
 import { AutenticacionService } from '../../core/services/autenticacion.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [RouterLink],
   templateUrl: './header.html',
   styleUrl: './header.css',
 })
-export class Header {
+export class Header implements OnInit {
 
   private readonly router = inject(Router);
   private readonly authService = inject(AutenticacionService);
+
+  usuarioActual: UsuarioAutenticado = {
+    nombre: '',
+    correo: '',
+    rol: '',
+  };
+
+  ngOnInit(): void {
+    const usuarioGuardado = this.authService.obtenerUsuarioActual();
+
+    if (usuarioGuardado) {
+      this.usuarioActual = usuarioGuardado;
+      return;
+    }
+
+    this.cargarUsuarioActual();
+  }
+
+  get iniciales(): string {
+    const nombre = this.usuarioActual.nombre.trim();
+
+    if (!nombre) {
+      return 'US';
+    }
+
+    const palabras = nombre.split(/\s+/).filter(Boolean).slice(0, 2);
+    const iniciales = palabras.map((palabra) => palabra.charAt(0).toUpperCase());
+
+    return iniciales.join('') || 'US';
+  }
 
   cerrarSesion(): void {
 
@@ -22,7 +52,7 @@ export class Header {
       },
 
       error: (error) => {
-        console.error('Error al cerrar sesión:', error);
+        console.error('Error al cerrar sesion:', error);
 
         // Aunque el backend falle, eliminamos el token local.
         this.finalizarSesion();
@@ -30,8 +60,25 @@ export class Header {
     });
   }
 
+  private cargarUsuarioActual(): void {
+    this.authService.obtenerPerfilUsuario().subscribe({
+      next: (respuesta) => {
+        const usuario = this.authService.normalizarPerfilUsuario(respuesta);
+
+        if (usuario) {
+          this.usuarioActual = usuario;
+          this.authService.guardarUsuarioActual(usuario);
+        }
+      },
+      error: (error) => {
+        console.error('Error al obtener el perfil del usuario:', error);
+      }
+    });
+  }
+
   private finalizarSesion(): void {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('usuario_actual');
     this.router.navigate(['/login']);
   }
 }

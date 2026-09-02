@@ -24,8 +24,6 @@
       </div>
     }
 
-
-
     <form
       class="verificacion-form"
       [formGroup]="verificacionForm"
@@ -49,9 +47,9 @@
         @if (campoInvalido(codigo)) {
           <small>
             @if (codigo.hasError('required')) {
-              Ingresa el código de verificación.
+              Ingresa el codigo de verificacion.
             } @else {
-              El código debe tener 6 dígitos.
+              El codigo debe tener 6 digitos.
             }
           </small>
         }
@@ -63,7 +61,7 @@
     </form>
 
     <div class="reenviar">
-      <p>¿No recibiste el código?</p>
+      <p>No recibiste el codigo?</p>
 
       <button
         class="resend-button"
@@ -71,12 +69,12 @@
         (click)="reenviarCodigo()"
         [disabled]="cargando"
       >
-        {{ cargando ? 'Reenviando...' : 'Reenviar código' }}
+        {{ cargando ? 'Reenviando...' : 'Reenviar codigo' }}
       </button>
 
       @if (codeResent) {
         <small class="success-message">
-          Se ha solicitado un nuevo código.
+          Se ha solicitado un nuevo codigo.
         </small>
       }
     </div>

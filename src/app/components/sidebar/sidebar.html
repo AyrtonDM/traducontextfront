@@ -1,0 +1,18 @@
+<aside class="sidebar">
+  <div class="brand" routerLink="/inicio" aria-label="Ir a inicio">
+    <div class="brand-mark">A</div>
+    <span class="brand-text">TraduContext</span>
+  </div>
+
+  <nav class="sidebar-nav" aria-label="Navegacion principal">
+    <a class="nav-item active" routerLink="/inicio" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <i class="fa fa-home nav-icon" aria-hidden="true"></i>
+      <span>Inicio</span>
+    </a>
+  </nav>
+
+  <button type="button" class="nav-item nav-item-button" (click)="cerrarSesion()">
+    <i class="fa fa-sign-out nav-icon" aria-hidden="true"></i>
+    <span>Cerrar sesion</span>
+  </button>
+</aside>

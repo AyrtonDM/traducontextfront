@@ -58,7 +58,7 @@ export class VerificarCorreo implements OnInit {
     this.authService.verificarCodigo({ correo: this.correo, codigo: codigoVal }).subscribe({
       next: (respuesta: any) => {
         this.cargando = false;
-        this.mensajeExito = respuesta.mensaje || '�Cuenta verificada con exito!';
+        this.mensajeExito = respuesta.mensaje || 'Cuenta verificada con exito!';
         localStorage.removeItem('correo_verificar');
         setTimeout(() => {
           this.router.navigate(['/login']);
@@ -66,7 +66,7 @@ export class VerificarCorreo implements OnInit {
       },
       error: (err) => {
         this.cargando = false;
-        this.mensajeError = err.error?.detail || 'El código ingresado es incorrecto o ha expirado.';
+        this.mensajeError = err.error?.detail || 'El codigo ingresado es incorrecto o ha expirado.';
       }
     });
   }
@@ -79,10 +79,10 @@ export class VerificarCorreo implements OnInit {
     this.authService.reenviarCodigo(this.correo).subscribe({
       next: (respuesta: any) => {
         this.codeResent = true;
-        this.mensajeExito = respuesta.mensaje || 'Se ha solicitado un nuevo código.';
+        this.mensajeExito = respuesta.mensaje || 'Se ha solicitado un nuevo codigo.';
       },
       error: (err) => {
-        this.mensajeError = err.error?.detail || 'No se pudo reenviar el código.';
+        this.mensajeError = err.error?.detail || 'No se pudo reenviar el codigo.';
       }
     });
   }

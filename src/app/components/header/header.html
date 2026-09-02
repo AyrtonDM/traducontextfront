@@ -1,17 +1,19 @@
 <header class="header">
   <div class="header-contenido">
+    <div class="header-spacer"></div>
 
-    <a class="logo" routerLink="/">
-      TraduContext
-    </a>
+    <div class="header-actions">
+      <button class="icon-button" type="button" aria-label="Notificaciones">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
 
-    <button
-      type="button"
-      class="boton-cerrar-sesion"
-      (click)="cerrarSesion()"
-    >
-      Cerrar sesion
-    </button>
-
+      <div class="perfil-mini" aria-label="Perfil del usuario">
+        <span class="perfil-badge">{{ iniciales }}</span>
+        <span class="perfil-nombre">{{ usuarioActual.nombre || 'Usuario' }}</span>
+        <span class="perfil-chevron"><i class="fa fa-angle-down" aria-hidden="true"></i></span>
+      </div>
+    </div>
   </div>
 </header>

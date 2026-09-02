@@ -82,7 +82,7 @@ export class RecuperacionContrasena implements OnDestroy {
 		setTimeout(() => this.focusCodeInput(0));
 		this.authService.solicitarRecuperacion(this.emailControl.value).pipe(timeout(20000)).subscribe({
 			next: () => undefined,
-			error: (error) => this.handleError(error, 'No pudimos enviar el código. Revisa tu correo e inténtalo de nuevo.'),
+      error: (error) => this.handleError(error, 'No pudimos enviar el codigo. Revisa tu correo e intentalo de nuevo.'),
 		});
 	}
 
@@ -121,8 +121,8 @@ export class RecuperacionContrasena implements OnDestroy {
 			error: (error) => {
 				this.isLoading = false;
 				this.backendError = error.status === 400
-					? 'El código es incorrecto o ha expirado.'
-					: 'No se pudo validar el código. Inténtalo de nuevo.';
+					? 'El codigo es incorrecto o ha expirado.'
+					: 'No se pudo validar el codigo. Intentalo de nuevo.';
 			},
 		});
 	}
@@ -137,7 +137,7 @@ export class RecuperacionContrasena implements OnDestroy {
 			finalize(() => this.isLoading = false),
 		).subscribe({
 			next: () => undefined,
-			error: (error) => this.handleError(error, 'No pudimos reenviar el código.'),
+			error: (error) => this.handleError(error, 'No pudimos reenviar el codigo.'),
 		});
 	}
 
@@ -153,11 +153,11 @@ export class RecuperacionContrasena implements OnDestroy {
 			finalize(() => this.isLoading = false),
 		).subscribe({
 			next: () => {
-				this.successMessage = 'Tu contraseña se restableció correctamente.';
+				this.successMessage = 'Tu contrasena se restablecio correctamente.';
 				this.stopCountdown();
 				setTimeout(() => this.router.navigate(['/login']), 1200);
 			},
-			error: (error) => this.handleError(error, 'El código no es válido o ha expirado.'),
+			error: (error) => this.handleError(error, 'El codigo no es valido o ha expirado.'),
 		});
 	}
 

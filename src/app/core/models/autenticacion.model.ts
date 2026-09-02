@@ -13,3 +13,26 @@ export interface InicioSesion {
   correo: string;
   contrasena: string;
 }
+
+export interface RolUsuario {
+  id?: number;
+  nombre?: string;
+}
+
+export interface PerfilUsuario {
+  id?: number;
+  nombre?: string;
+  correo?: string;
+  rol?: RolUsuario | string | null;
+}
+
+export interface PerfilUsuarioRespuesta {
+  mensaje?: string;
+  resultado?: PerfilUsuario | null;
+}
+
+export interface UsuarioAutenticado {
+  nombre: string;
+  correo: string;
+  rol: string;
+}

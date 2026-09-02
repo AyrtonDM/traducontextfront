@@ -1,5 +1,11 @@
-<app-header></app-header>
+<div class="autenticado-shell">
+  <app-sidebar></app-sidebar>
 
-<main class="contenido">
-  <router-outlet></router-outlet>
-</main>
+  <div class="autenticado-main">
+    <app-header></app-header>
+
+    <main class="contenido">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

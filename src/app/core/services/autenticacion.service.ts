@@ -2,7 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { RegistroUsuario, VerificarCodigo, InicioSesion } from '../models/autenticacion.model';
+import {
+  RegistroUsuario,
+  VerificarCodigo,
+  InicioSesion,
+  PerfilUsuario,
+  PerfilUsuarioRespuesta,
+  UsuarioAutenticado,
+} from '../models/autenticacion.model';
 
 @Injectable({
   providedIn: 'root'
@@ -64,6 +71,63 @@ export class AutenticacionService {
       `${this.apiUrl}/autenticacion/iniciar-sesion`,
       { correo, contrasena }
     );
+  }
+
+  obtenerPerfilUsuario(): Observable<PerfilUsuarioRespuesta> {
+    return this.http.get<PerfilUsuarioRespuesta>(`${this.apiUrl}/usuarios/me`);
+  }
+
+  obtenerUsuarioActual(): UsuarioAutenticado | null {
+    const usuarioEnStorage = localStorage.getItem('usuario_actual');
+
+    if (!usuarioEnStorage) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(usuarioEnStorage) as UsuarioAutenticado;
+    } catch {
+      return null;
+    }
+  }
+
+  guardarUsuarioActual(usuario: UsuarioAutenticado | null): void {
+    if (!usuario) {
+      localStorage.removeItem('usuario_actual');
+      return;
+    }
+
+    localStorage.setItem('usuario_actual', JSON.stringify(usuario));
+  }
+
+  normalizarPerfilUsuario(respuesta: PerfilUsuarioRespuesta | PerfilUsuario | null | undefined): UsuarioAutenticado | null {
+    const perfilCrudo = (respuesta as PerfilUsuarioRespuesta).resultado;
+
+    if (!perfilCrudo || typeof perfilCrudo !== 'object') {
+      return null;
+    }
+
+    const perfil = perfilCrudo as PerfilUsuario;
+    const usuario: UsuarioAutenticado = {
+      nombre: perfil.nombre ?? '',
+      correo: perfil.correo ?? '',
+      rol: this.extraerNombreRol(perfil),
+    };
+
+    return usuario;
+  }
+
+  private extraerNombreRol(perfil: PerfilUsuario): string {
+    const rol = perfil.rol ?? '';
+
+    if (typeof rol === 'string') {
+      return rol;
+    }
+
+    if (rol && typeof rol === 'object') {
+      return rol.nombre ?? '';
+    }
+    return '';
   }
 
   cerrarSesion(): Observable<unknown> {
