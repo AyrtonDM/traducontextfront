@@ -2,89 +2,281 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
+
   width: 260px;
   height: 100vh;
+
   background: linear-gradient(180deg, #4d2f9b 0%, #7b8fe7 100%);
+
   padding: 26px 18px 24px;
+
   display: flex;
   flex-direction: column;
+
   color: #ffffff;
+
   box-shadow: 10px 0 25px rgba(35, 28, 77, 0.12);
+
   flex-shrink: 0;
+
+  box-sizing: border-box;
+
+  overflow: hidden;
 }
+
+
+/* =========================
+   MARCA / LOGO
+   ========================= */
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
+
   text-decoration: none;
   color: inherit;
+
   padding: 6px 10px 18px;
+
   cursor: pointer;
+
+  flex-shrink: 0;
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
+  width: 36px;
+  height: 36px;
+
+  border-radius: 10px;
+
   display: grid;
   place-items: center;
+
   background: rgba(255, 255, 255, 0.18);
-  font-size: 0.9rem;
+
+  font-size: 1rem;
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .brand-text {
   font-size: 1.05rem;
   font-weight: 700;
+
   letter-spacing: -0.02em;
 }
+
+
+/* =========================
+   NAVEGACIÓN
+   ========================= */
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
+
+  gap: 18px;
+
+  margin-top: 8px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding-right: 4px;
+
+  scrollbar-width: thin;
 }
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+.section-title {
+  padding: 0 14px 7px;
+
+  font-size: 0.68rem;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+
+  color: rgba(255, 255, 255, 0.58);
+}
+
+
+/* =========================
+   ELEMENTOS DEL MENÚ
+   ========================= */
 
 .nav-item {
   width: 100%;
+
   display: flex;
   align-items: center;
+
   gap: 12px;
-  padding: 12px 14px;
+
+  padding: 10px 14px;
+
   border-radius: 12px;
+
   background: transparent;
+
   color: rgba(255, 255, 255, 0.86);
+
   text-decoration: none;
+
   border: none;
+
   text-align: left;
+
   font: inherit;
+
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+
+  box-sizing: border-box;
 }
 
 .nav-item:hover,
 .nav-item.active {
   background: rgba(255, 255, 255, 0.16);
+
   color: #ffffff;
+
   transform: translateX(1px);
 }
 
 .nav-icon {
   width: 22px;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.05rem;
+
+  font-size: 1rem;
+
   line-height: 1;
+
+  flex-shrink: 0;
 }
 
-.nav-item-button {
-  margin-top: auto;
-  background: rgba(255, 255, 255, 0.04);
+
+/* =========================
+   ADMINISTRACIÓN
+   ========================= */
+
+.admin-section {
+  padding-top: 4px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.admin-title {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+
+  padding-top: 14px;
+}
+
+.admin-title i {
+  font-size: 0.72rem;
+
+  color: rgba(255, 255, 255, 0.7);
+}
+
+
+/* =========================
+   INFORMACIÓN DEL USUARIO
+   ========================= */
+
+.user-section {
+  margin-top: auto;
+
+  padding-top: 14px;
+
+  flex-shrink: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 10px 10px 12px;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+
+  border-radius: 50%;
+
+  display: grid;
+  place-items: center;
+
+  background: rgba(255, 255, 255, 0.18);
+
+  color: #ffffff;
+
+  font-size: 0.9rem;
+  font-weight: 700;
+
+  flex-shrink: 0;
+}
+
+.user-details {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.user-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 0.72rem;
+
+  color: rgba(255, 255, 255, 0.65);
+
+  text-transform: capitalize;
+}
+
+
+/* =========================
+   CERRAR SESIÓN
+   ========================= */
+
+.nav-item-button {
+  margin-top: 2px;
+
+  background: rgba(255, 255, 255, 0.04);
+
+  align-items: center;
+
   justify-content: flex-start;
 }
 
+.nav-item-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}

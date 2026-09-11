@@ -24,6 +24,7 @@ export interface PerfilUsuario {
   nombre?: string;
   correo?: string;
   rol?: RolUsuario | string | null;
+  permisos?: string[];
 }
 
 export interface PerfilUsuarioRespuesta {
@@ -35,4 +36,5 @@ export interface UsuarioAutenticado {
   nombre: string;
   correo: string;
   rol: string;
+  permisos: string[];
 }

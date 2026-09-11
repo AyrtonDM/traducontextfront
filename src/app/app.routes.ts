@@ -9,9 +9,12 @@ import { Inicio } from './views/inicio/inicio';
 import { Autenticado } from './layouts/autenticado/autenticado';
 
 import { autenticacionGuard } from './core/guards/autenticacion.guard';
+import { Usuarios } from './views/administracion/usuarios/usuarios';
+import { permisoGuard } from './core/guards/permiso.guard';
+
 export const routes: Routes = [
   // ==========================
-  // RUTAS PÚBLICAS
+  // RUTAS Pï¿½BLICAS
   // ==========================
 
   {
@@ -49,7 +52,17 @@ export const routes: Routes = [
       {
         path: 'inicio',
         component: Inicio
+      },
+
+      {
+        path: 'administracion/usuarios',
+        component: Usuarios,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'gestionar_usuarios'
+        }
       }
+
     ]
   },
 

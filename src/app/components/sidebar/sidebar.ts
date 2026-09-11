@@ -1,6 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AutenticacionService } from '../../core/services/autenticacion.service';
+import { UsuarioAutenticado } from '../../core/models/autenticacion.model';
 
 @Component({
     selector: 'app-sidebar',
@@ -9,9 +10,20 @@ import { AutenticacionService } from '../../core/services/autenticacion.service'
     templateUrl: './sidebar.html',
     styleUrl: './sidebar.css',
 })
-export class Sidebar {
+export class Sidebar implements OnInit {
+
     private readonly router = inject(Router);
     private readonly authService = inject(AutenticacionService);
+
+    usuarioActual: UsuarioAutenticado | null = null;
+
+    ngOnInit(): void {
+        this.usuarioActual = this.authService.obtenerUsuarioActual();
+    }
+
+    tienePermiso(permiso: string): boolean {
+        return this.usuarioActual?.permisos?.includes(permiso) ?? false;
+    }
 
     cerrarSesion(): void {
 

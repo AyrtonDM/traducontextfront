@@ -18,6 +18,7 @@ export class Header implements OnInit {
     nombre: '',
     correo: '',
     rol: '',
+    permisos: [],
   };
 
   ngOnInit(): void {

@@ -112,6 +112,7 @@ export class AutenticacionService {
       nombre: perfil.nombre ?? '',
       correo: perfil.correo ?? '',
       rol: this.extraerNombreRol(perfil),
+      permisos: perfil.permisos ?? [],
     };
 
     return usuario;

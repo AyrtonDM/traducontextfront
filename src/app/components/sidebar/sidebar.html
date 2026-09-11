@@ -1,18 +1,171 @@
 <aside class="sidebar">
+
+  <!-- LOGO -->
   <div class="brand" routerLink="/inicio" aria-label="Ir a inicio">
-    <div class="brand-mark">A</div>
+    <div class="brand-mark">T</div>
     <span class="brand-text">TraduContext</span>
   </div>
 
   <nav class="sidebar-nav" aria-label="Navegacion principal">
-    <a class="nav-item active" routerLink="/inicio" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      <i class="fa fa-home nav-icon" aria-hidden="true"></i>
-      <span>Inicio</span>
-    </a>
+
+    <!-- PRINCIPAL -->
+    <div class="sidebar-section">
+      <span class="section-title">PRINCIPAL</span>
+
+      <a
+        class="nav-item"
+        routerLink="/inicio"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <i class="fa fa-home nav-icon" aria-hidden="true"></i>
+        <span>Inicio</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-magic nav-icon" aria-hidden="true"></i>
+        <span>Nueva traducción</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-file-alt nav-icon" aria-hidden="true"></i>
+        <span>Documentos</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-microphone nav-icon" aria-hidden="true"></i>
+        <span>Conversación</span>
+      </a>
+    </div>
+
+
+    <!-- HISTORIAL -->
+    <div class="sidebar-section">
+      <span class="section-title">HISTORIAL</span>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-history nav-icon" aria-hidden="true"></i>
+        <span>Historial</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-star nav-icon" aria-hidden="true"></i>
+        <span>Favoritos</span>
+      </a>
+    </div>
+
+
+    <!-- HERRAMIENTAS -->
+    <div class="sidebar-section">
+      <span class="section-title">HERRAMIENTAS</span>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-book nav-icon" aria-hidden="true"></i>
+        <span>Glosarios</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-link nav-icon" aria-hidden="true"></i>
+        <span>Integraciones</span>
+      </a>
+    </div>
+
+
+    <!-- CUENTA -->
+    <div class="sidebar-section">
+      <span class="section-title">CUENTA</span>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-user nav-icon" aria-hidden="true"></i>
+        <span>Mi perfil</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-cog nav-icon" aria-hidden="true"></i>
+        <span>Preferencias</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <i class="fa fa-credit-card nav-icon" aria-hidden="true"></i>
+        <span>Plan y suscripción</span>
+      </a>
+    </div>
+
+
+    <!-- ADMINISTRACIÓN -->
+    @if (tienePermiso('gestionar_usuarios')) {
+      <div class="sidebar-section admin-section">
+
+        <div class="section-title admin-title">
+          <span>ADMINISTRACIÓN</span>
+          <i class="fa fa-lock" aria-hidden="true"></i>
+        </div>
+
+        <a class="nav-item" href="javascript:void(0)">
+          <i class="fa fa-chart-bar nav-icon" aria-hidden="true"></i>
+          <span>Dashboard</span>
+        </a>
+
+        <a
+          class="nav-item"
+          routerLink="/administracion/usuarios"
+          routerLinkActive="active"
+        >
+          <i class="fa fa-users nav-icon" aria-hidden="true"></i>
+          <span>Usuarios</span>
+        </a>
+
+        <a class="nav-item" href="javascript:void(0)">
+          <i class="fa fa-credit-card nav-icon" aria-hidden="true"></i>
+          <span>Planes</span>
+        </a>
+
+        <a class="nav-item" href="javascript:void(0)">
+          <i class="fa fa-clipboard-list nav-icon" aria-hidden="true"></i>
+          <span>Suscripciones</span>
+        </a>
+
+        <a class="nav-item" href="javascript:void(0)">
+          <i class="fa fa-chart-line nav-icon" aria-hidden="true"></i>
+          <span>Reportes</span>
+        </a>
+
+      </div>
+    }
+
   </nav>
 
-  <button type="button" class="nav-item nav-item-button" (click)="cerrarSesion()">
-    <i class="fa fa-sign-out nav-icon" aria-hidden="true"></i>
-    <span>Cerrar sesion</span>
-  </button>
+
+  <!-- INFORMACIÓN DEL USUARIO -->
+  <div class="user-section">
+
+    <div class="user-info">
+      <div class="user-avatar">
+        {{ usuarioActual?.nombre?.charAt(0)?.toUpperCase() || 'U' }}
+      </div>
+
+      <div class="user-details">
+        <span class="user-name">
+          {{ usuarioActual?.nombre || 'Usuario' }}
+        </span>
+
+        <span class="user-role">
+          {{ usuarioActual?.rol || 'Usuario' }}
+        </span>
+      </div>
+    </div>
+
+
+    <!-- CERRAR SESIÓN -->
+    <button
+      type="button"
+      class="nav-item nav-item-button"
+      (click)="cerrarSesion()"
+    >
+      <i class="fa fa-sign-out nav-icon" aria-hidden="true"></i>
+      <span>Cerrar sesión</span>
+    </button>
+
+  </div>
+
 </aside>
