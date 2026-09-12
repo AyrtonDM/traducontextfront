@@ -1,7 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
-import { switchMap } from 'rxjs';
 import { AutenticacionService } from '../../../core/services/autenticacion.service';
 
 @Component({
@@ -56,51 +55,20 @@ export class InicioSesion {
 
     const { email, password } = this.loginForm.getRawValue();
 
-    this.authService.iniciarSesion(email, password).pipe(
-      switchMap((respuesta) => {
-        if (!respuesta?.resultado || respuesta.resultado.length === 0) {
-          throw new Error('No se recibió el token de sesión.');
-        }
-
-        const token = respuesta.resultado[0]?.token;
-
-        if (!token) {
-          throw new Error('No se recibió un token de sesión válido.');
-        }
-
-        localStorage.setItem('auth_token', token);
-
-        return this.authService.obtenerPerfilUsuario();
-      })
-    ).subscribe({
-      next: (perfil) => {
-        const usuario = this.authService.normalizarPerfilUsuario(perfil);
-
-        if (!usuario) {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('usuario_actual');
-
-          this.isLoading = false;
-          this.backendError = 'No se pudo obtener la información del usuario.';
-          return;
-        }
-
-        this.authService.guardarUsuarioActual(usuario);
-
+    this.authService.iniciarSesion(email, password).subscribe({
+      next: (respuesta) => {
         this.isLoading = false;
-
+        // Se guarda el token retornado en la clave resultado que es una lista con el token
+        if (respuesta.resultado && respuesta.resultado.length > 0) {
+          const token = respuesta.resultado[0].token;
+          localStorage.setItem('auth_token', token);
+        }
+        // Redirige al panel principal/home una vez logueado
         this.router.navigate(['/inicio']);
       },
       error: (err) => {
         this.isLoading = false;
-
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('usuario_actual');
-
-        this.backendError =
-          err.error?.detail ||
-          err.message ||
-          'No se pudo iniciar sesión.';
+        this.backendError = err.error?.detail || 'Correo o contraseña incorrectos.';
       }
     });
   }

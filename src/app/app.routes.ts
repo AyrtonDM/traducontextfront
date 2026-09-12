@@ -14,66 +14,66 @@ import { Usuarios } from './views/administracion/usuarios/usuarios';
 import { permisoGuard } from './core/guards/permiso.guard';
 
 export const routes: Routes = [
-  // ==========================
-  // RUTAS P�BLICAS
-  // ==========================
+  // ==========================
+  // RUTAS P�BLICAS
+  // ==========================
 
-  {
-    path: 'login',
-    component: InicioSesion,
-  },
-  {
-    path: 'registro',
-    component: Registro,
-  },
-  {
-    path: 'verificar_correo',
-    component: VerificarCorreo,
-  },
-  {
-    path: 'recuperar-password',
-    component: RecuperacionContrasena,
-  },
-  {
-    path: '',
-    redirectTo: 'login',
-    pathMatch: 'full',
-  },
+  {
+    path: 'login',
+    component: InicioSesion,
+  },
+  {
+    path: 'registro',
+    component: Registro,
+  },
+  {
+    path: 'verificar_correo',
+    component: VerificarCorreo,
+  },
+  {
+    path: 'recuperar-password',
+    component: RecuperacionContrasena,
+  },
+  {
+    path: '',
+    redirectTo: 'login',
+    pathMatch: 'full',
+  },
 
-  // ==========================
-  // RUTAS AUTENTICADAS
-  // ==========================
+  // ==========================
+  // RUTAS AUTENTICADAS
+  // ==========================
 
-  {
-    path: '',
-    component: Autenticado,
-    canActivate: [autenticacionGuard],
-    children: [
-      {
-        path: 'traduccion',
-        component: Traduccion
-      },
+  {
+    path: '',
+    component: Autenticado,
+    canActivate: [autenticacionGuard],
+    children: [
+      {
+        path: 'traduccion',
+        component: Traduccion
+      },
 
-      {
-        path: 'inicio',
-        component: Inicio
-      },
+      {
+        path: 'inicio',
+        component: Inicio
+      },
 
-      {
-        path: 'administracion/usuarios',
-        component: Usuarios,
-        canActivate: [permisoGuard],
-        data: {
-          permiso: 'gestionar_usuarios'
-        }
-      }
+      {
+        path: 'administracion/usuarios',
+        component: Usuarios,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'gestionar_usuarios'
+        }
+      }
 
-    ]
-  },
+    ]
+  },
 
-  {
-    path: '**',
-    redirectTo: 'login',
-  },
+  {
+    path: '**',
+    redirectTo: 'login',
+  },
 
 ];

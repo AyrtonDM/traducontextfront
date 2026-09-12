@@ -1,7 +1,7 @@
 <section class="recovery-page">
 	<div class="recovery-shell">
 		<main class="recovery-card">
-			<div class="step-indicator" aria-label="Progreso de recuperacion">
+			<div class="step-indicator" aria-label="Progreso de recuperación">
 				@for (step of [1, 2, 3]; track step) {
 					<span [class.active]="currentStep >= step" [class.current]="currentStep === step"></span>
 				}
@@ -14,23 +14,23 @@
 					</div>
 					<p class="eyebrow">Paso 1 de 3</p>
 					<h1>Verifica tu cuenta</h1>
-					<p class="description">Ingresa tu correo electronico y te enviaremos un codigo de verificacion.</p>
+					<p class="description">Ingresa tu correo electrónico y te enviaremos un código de verificación.</p>
 
 					@if (backendError) { <div class="backend-error" role="alert">{{ backendError }}</div> }
 
 					<form [formGroup]="accountForm" (ngSubmit)="submitEmail()" novalidate>
 						<div class="form-field">
-							<label for="recovery-email">Correo electronico</label>
+							<label for="recovery-email">Correo electrónico</label>
 							<input id="recovery-email" type="email" formControlName="email" placeholder="ejemplo@correo.com" [class.invalid]="hasEmailError" autocomplete="email" />
 							@if (hasEmailError) {
 								<small class="error-message">
 									@if (emailControl.errors?.['required']) { Este campo es obligatorio. }
-									@if (emailControl.errors?.['email']) { Ingresa un correo valido. }
+									@if (emailControl.errors?.['email']) { Ingresa un correo válido. }
 								</small>
 							}
 						</div>
 						<button type="submit" class="submit-button" [disabled]="accountForm.invalid || isLoading">
-							{{ isLoading ? 'Enviando...' : 'Enviar codigo' }}
+							{{ isLoading ? 'Enviando...' : 'Enviar código' }}
 						</button>
 					</form>
 				</div>
@@ -42,24 +42,24 @@
 						<svg viewBox="0 0 24 24" focusable="false"><path d="M12 3 19 6v5c0 4.5-2.9 7.9-7 9.7C7.9 18.9 5 15.5 5 11V6l7-3Zm0 5v8m-3-4h6" /></svg>
 					</div>
 					<p class="eyebrow">Paso 2 de 3</p>
-					<h1>Ingresa el codigo</h1>
-					<p class="description">Hemos enviado un codigo a tu correo. Ingresa el codigo para continuar.</p>
+					<h1>Ingresa el código</h1>
+					<p class="description">Hemos enviado un código a tu correo. Ingresa el código para continuar.</p>
 
 					@if (backendError) { <div class="backend-error" role="alert">{{ backendError }}</div> }
 
 					<form [formGroup]="codeForm" (submit)="$event.preventDefault()" novalidate>
 						<fieldset class="code-fieldset">
-							<legend>Codigo de verificacion</legend>
+							<legend>Código de verificación</legend>
 							<div class="code-inputs" formArrayName="code">
 								@for (control of codeControls; track $index; let index = $index) {
-									<input #codeInput type="text" inputmode="numeric" maxlength="1" [formControlName]="index" [attr.aria-label]="'Digito ' + (index + 1)" (input)="onCodeInput(index, $event)" (keydown)="onCodeKeydown(index, $event)" (paste)="onCodePaste($event)" />
+									<input #codeInput type="text" inputmode="numeric" maxlength="1" [formControlName]="index" [attr.aria-label]="'Dígito ' + (index + 1)" (input)="onCodeInput(index, $event)" (keydown)="onCodeKeydown(index, $event)" (paste)="onCodePaste($event)" />
 								}
 							</div>
 						</fieldset>
 					</form>
 
 					<button type="button" class="resend-button" [disabled]="countdown > 0 || isLoading" (click)="resendCode()">
-						Reenviar codigo
+						Reenviar código
 						@if (countdown > 0) { <span>({{ formattedCountdown }})</span> }
 					</button>
 					<button type="button" class="back-link" (click)="currentStep = 1">Usar otro correo</button>
@@ -72,44 +72,44 @@
 						<svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
 					</div>
 					<p class="eyebrow">Paso 3 de 3</p>
-					<h1>Restablece tu contrasena</h1>
-					<p class="description">Crea una nueva contrasena segura para recuperar el acceso.</p>
+					<h1>Restablece tu contraseña</h1>
+					<p class="description">Crea una nueva contraseña segura para recuperar el acceso.</p>
 
 					@if (backendError) { <div class="backend-error" role="alert">{{ backendError }}</div> }
 					@if (successMessage) { <div class="success-message" role="status">{{ successMessage }}</div> }
 
 					<form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
 						<div class="form-field password-field">
-							<label for="new-password">Nueva contrasena</label>
+							<label for="new-password">Nueva contraseña</label>
 							<div class="password-wrapper">
-								<input id="new-password" [type]="showNewPassword ? 'text' : 'password'" formControlName="newPassword" placeholder="Minimo 8 caracteres" autocomplete="new-password" />
-								<button type="button" class="password-toggle" (click)="toggleNewPassword()" [attr.aria-label]="showNewPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'">
-									<span aria-hidden="true">{{ showNewPassword ? 'v' : 'o' }}</span>
+								<input id="new-password" [type]="showNewPassword ? 'text' : 'password'" formControlName="newPassword" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+								<button type="button" class="password-toggle" (click)="toggleNewPassword()" [attr.aria-label]="showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+									<span aria-hidden="true">{{ showNewPassword ? '◉' : '◌' }}</span>
 								</button>
 							</div>
-							@if (newPasswordControl.invalid && newPasswordControl.touched) { <small class="error-message">La contrasena debe tener al menos 8 caracteres.</small> }
+							@if (newPasswordControl.invalid && newPasswordControl.touched) { <small class="error-message">La contraseña debe tener al menos 8 caracteres.</small> }
 						</div>
 
 						<div class="form-field password-field">
-							<label for="confirm-password">Confirmar contrasena</label>
+							<label for="confirm-password">Confirmar contraseña</label>
 							<div class="password-wrapper">
-								<input id="confirm-password" [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" placeholder="Repite tu contrasena" autocomplete="new-password" />
-								<button type="button" class="password-toggle" (click)="toggleConfirmPassword()" [attr.aria-label]="showConfirmPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'">
-									<span aria-hidden="true">{{ showConfirmPassword ? 'v' : 'o' }}</span>
+								<input id="confirm-password" [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" placeholder="Repite tu contraseña" autocomplete="new-password" />
+								<button type="button" class="password-toggle" (click)="toggleConfirmPassword()" [attr.aria-label]="showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+									<span aria-hidden="true">{{ showConfirmPassword ? '◉' : '◌' }}</span>
 								</button>
 							</div>
-							@if (confirmPasswordControl.invalid && confirmPasswordControl.touched) { <small class="error-message">Confirma tu contrasena.</small> }
-							@if (hasPasswordMismatch) { <small class="error-message">Las contrasenas no coinciden.</small> }
+							@if (confirmPasswordControl.invalid && confirmPasswordControl.touched) { <small class="error-message">Confirma tu contraseña.</small> }
+							@if (hasPasswordMismatch) { <small class="error-message">Las contraseñas no coinciden.</small> }
 						</div>
 
 						<button type="submit" class="submit-button" [disabled]="passwordForm.invalid || isLoading || successMessage">
-							{{ isLoading ? 'Restableciendo...' : 'Restablecer contrasena' }}
+							{{ isLoading ? 'Restableciendo...' : 'Restablecer contraseña' }}
 						</button>
 					</form>
 				</div>
 			}
 
-			<a class="login-link" routerLink="/login">Volver a iniciar sesion</a>
+			<a class="login-link" routerLink="/login">Volver a iniciar sesión</a>
 		</main>
 	</div>
 </section>
