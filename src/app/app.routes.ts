@@ -4,7 +4,8 @@ import { Registro } from './views/autenticacion/registro/registro';
 import { VerificarCorreo } from './views/autenticacion/verificar_correo/verificar_correo';
 import { RecuperacionContrasena } from './views/autenticacion/recuperacion_contrasena/recuperacion_contrasena.';
 
-import { Inicio } from './views/inicio/inicio';
+import { Inicio } from './views/aplicacion/inicio/inicio';
+import { Traduccion } from './views/aplicacion/traduccion/traduccion';
 
 import { Autenticado } from './layouts/autenticado/autenticado';
 
@@ -48,6 +49,10 @@ export const routes: Routes = [
     component: Autenticado,
     canActivate: [autenticacionGuard],
     children: [
+      {
+        path: 'traduccion',
+        component: Traduccion
+      },
 
       {
         path: 'inicio',
