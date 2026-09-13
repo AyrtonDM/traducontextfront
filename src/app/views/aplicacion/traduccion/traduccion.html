@@ -11,69 +11,110 @@
     <button class="help-button" type="button" (click)="ayuda = !ayuda" [attr.aria-expanded]="ayuda" aria-controls="ayuda"><i class="fa fa-question-circle" aria-hidden="true"></i> ¿Cómo funciona?</button>
   </header>
   @if (ayuda) {
-    <aside class="help-panel" id="ayuda">Escribe el texto de origen, elige los idiomas y ajusta el contexto y el tono. Esta vista muestra datos de ejemplo; la traducción automática estará disponible al conectar el servicio.</aside>
+    <aside class="help-panel" id="ayuda">Escribe el texto de origen, elige los idiomas y ajusta el contexto y el tono. TraduContext utiliza inteligencia artificial avanzada para analizar la terminología y contexto antes de traducir.</aside>
   }
 
   <div class="workspace-layout">
     <div class="workspace-main">
       <section class="panel translation-panel" aria-label="Editor de traducción">
-    <div class="editor source-editor">
-      <div class="editor-header">
-        <label for="texto-origen" class="section-title">Texto de origen</label>
-        <div class="language-field">
-          <span class="source-count">{{ texto.length }}/5000</span>
-          <i class="fa fa-globe" aria-hidden="true"></i>
-          <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto()">
-            @for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
-          </select>
+        <div class="editor source-editor">
+          <div class="editor-header">
+            <label for="texto-origen" class="section-title">Texto de origen</label>
+            <div class="language-field">
+              <span class="source-count">{{ texto.length }}/5000</span>
+              <i class="fa fa-globe" aria-hidden="true"></i>
+              <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto()">
+                @for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
+              </select>
+            </div>
+          </div>
+          <div class="text-box source-box">
+            <textarea id="texto-origen" maxlength="5000" [(ngModel)]="texto" (ngModelChange)="actualizarTexto()" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
+            <button class="icon-button clear-button" type="button" aria-label="Borrar texto" (click)="limpiar()" [disabled]="!texto"><i class="fa fa-times" aria-hidden="true"></i></button>
+            <div class="source-tools">
+              <button class="icon-button" type="button" disabled aria-label="Importar documento (próximamente)" title="Importar documento: próximamente"><i class="fa fa-file-text-o" aria-hidden="true"></i></button>
+              <button class="icon-button" type="button" disabled aria-label="Dictar texto (próximamente)" title="Dictado: próximamente"><i class="fa fa-microphone" aria-hidden="true"></i></button>
+              <button class="icon-button" type="button" disabled aria-label="Importar imagen (próximamente)" title="Importar imagen: próximamente"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="text-box source-box">
-        <textarea id="texto-origen" maxlength="5000" [(ngModel)]="texto" (ngModelChange)="actualizarTexto()" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
-        <button class="icon-button clear-button" type="button" aria-label="Borrar texto" (click)="limpiar()" [disabled]="!texto"><i class="fa fa-times" aria-hidden="true"></i></button>
-        <div class="source-tools">
-          <button class="icon-button" type="button" disabled aria-label="Importar documento (próximamente)" title="Importar documento: próximamente"><i class="fa fa-file-text-o" aria-hidden="true"></i></button>
-          <button class="icon-button" type="button" disabled aria-label="Dictar texto (próximamente)" title="Dictado: próximamente"><i class="fa fa-microphone" aria-hidden="true"></i></button>
-          <button class="icon-button" type="button" disabled aria-label="Importar imagen (próximamente)" title="Importar imagen: próximamente"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
+        <div class="swap-column"><button class="swap-button" type="button" aria-label="Intercambiar idiomas" (click)="intercambiar()"><i class="fa fa-exchange" aria-hidden="true"></i></button></div>
+        <div class="editor target-editor">
+          <div class="editor-header">
+            <h2 class="section-title">Traducción</h2>
+            <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto()">@for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
+          </div>
+          <div class="text-box result-box" [class.loading]="cargando()">
+            @if (cargando()) {
+              <div class="loading-state">
+                <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+                <p>Traduciendo con contexto inteligente...</p>
+              </div>
+            } @else {
+              <p aria-live="polite">{{ resultado || 'Tu traducción aparecerá aquí.' }}</p>
+            }
+            <div class="result-tools">
+              <button class="icon-button" type="button" aria-label="Marcar como favorito en esta vista" [attr.aria-pressed]="favorito" [disabled]="!resultado" (click)="favorito = !favorito"><i class="fa" [class.fa-star]="favorito" [class.fa-star-o]="!favorito" aria-hidden="true"></i></button>
+              <button class="icon-button" type="button" aria-label="Copiar traducción" [disabled]="!resultado" (click)="copiar()"><i class="fa fa-file-o" aria-hidden="true"></i></button>
+              <button class="icon-button" type="button" aria-label="Escuchar traducción" [disabled]="!resultado" (click)="escuchar()"><i class="fa fa-volume-up" aria-hidden="true"></i></button>
+            </div>
+          </div>
+
+          @if (listaAlternativas().length > 0) {
+            <div class="alternatives-wrapper">
+              <span class="alternatives-title"><i class="fa fa-random" aria-hidden="true"></i> Alternativas:</span>
+              <div class="alternatives-chips">
+                @for (alt of listaAlternativas(); track alt) {
+                  <button type="button" class="alt-chip" (click)="seleccionarAlternativa(alt)" title="Clic para usar esta opción">
+                    {{ alt }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          @if (explicacionModismos()) {
+            <div class="idiom-card">
+              <i class="fa fa-info-circle" aria-hidden="true"></i>
+              <div>
+                <strong>Modismos y expresiones:</strong>
+                <p>{{ explicacionModismos() }}</p>
+              </div>
+            </div>
+          }
         </div>
-      </div>
-    </div>
-    <div class="swap-column"><button class="swap-button" type="button" aria-label="Intercambiar idiomas" (click)="intercambiar()"><i class="fa fa-exchange" aria-hidden="true"></i></button></div>
-    <div class="editor target-editor">
-      <div class="editor-header">
-        <h2 class="section-title">Traducción</h2>
-        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto()">@for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
-      </div>
-      <div class="text-box result-box">
-        <p aria-live="polite">{{ resultado || 'Tu traducción aparecerá aquí.' }}</p>
-        <div class="result-tools">
-          <button class="icon-button" type="button" aria-label="Marcar como favorito en esta vista" [attr.aria-pressed]="favorito" [disabled]="!resultado" (click)="favorito = !favorito"><i class="fa" [class.fa-star]="favorito" [class.fa-star-o]="!favorito" aria-hidden="true"></i></button>
-          <button class="icon-button" type="button" aria-label="Copiar traducción" [disabled]="!resultado" (click)="copiar()"><i class="fa fa-file-o" aria-hidden="true"></i></button>
-          <button class="icon-button" type="button" aria-label="Escuchar traducción" [disabled]="!resultado" (click)="escuchar()"><i class="fa fa-volume-up" aria-hidden="true"></i></button>
-        </div>
-      </div>
-    </div>
       </section>
 
       <div class="bottom-grid">
-    <section class="panel support-panel" aria-labelledby="examples-title">
-      <h2 id="examples-title" class="section-title"><i class="fa fa-lightbulb-o" aria-hidden="true"></i> Ejemplos de uso</h2>
-      <div class="example-chips">@for (ejemplo of ejemplos; track ejemplo.nombre) { <button type="button" (click)="cargarEjemplo(ejemplo.texto)">{{ ejemplo.nombre }}</button> }</div>
-    </section>
-    <section class="panel support-panel" aria-labelledby="recent-title">
-      <div class="support-heading"><h2 id="recent-title" class="section-title"><i class="fa fa-clock-o" aria-hidden="true"></i> Traducciones recientes</h2>@if (recientes.length) { <button type="button" class="text-button" (click)="verTodo = !verTodo" [attr.aria-expanded]="verTodo">{{ verTodo ? 'Ver menos' : 'Ver todo' }}</button> }</div>
-      @if (recientes.length) {
-        <div class="recent-list">@for (item of recientes; track item.textoOriginal) {
-          <button class="recent-item" type="button"><span><strong>{{ item.textoOriginal }}</strong><span class="recent-meta">{{ item.idIdiomaOrigen }} → {{ item.idIdiomaDestino }} <time>{{ item.fechaCreacion }}</time></span></span><i class="fa fa-file-o" aria-hidden="true"></i></button>
-        }</div>
-      } @else {
-        <p class="empty-state">Todavía no tienes traducciones recientes.</p>
-      }
-    </section>
-    <section class="panel support-panel" aria-labelledby="tips-title">
-      <h2 id="tips-title" class="section-title"><i class="fa fa-book" aria-hidden="true"></i> Consejos</h2>
-      <ul class="tips"><li>Selecciona el contexto adecuado para mejores resultados.</li><li>Puedes escribir una descripción adicional si es necesario.</li><li>Utiliza la variante regional para adaptar la traducción.</li><li>Activa las opciones para obtener más información y alternativas.</li></ul>
-    </section>
+        <section class="panel support-panel" aria-labelledby="examples-title">
+          <h2 id="examples-title" class="section-title"><i class="fa fa-lightbulb-o" aria-hidden="true"></i> Ejemplos de uso</h2>
+          <div class="example-chips">@for (ejemplo of ejemplos; track ejemplo.nombre) { <button type="button" (click)="cargarEjemplo(ejemplo.texto)">{{ ejemplo.nombre }}</button> }</div>
+        </section>
+        <section class="panel support-panel" aria-labelledby="recent-title">
+          <div class="support-heading"><h2 id="recent-title" class="section-title"><i class="fa fa-clock-o" aria-hidden="true"></i> Traducciones recientes</h2>@if (recientes.length > 3) { <button type="button" class="text-button" (click)="verTodo = !verTodo" [attr.aria-expanded]="verTodo">{{ verTodo ? 'Ver menos' : 'Ver todo' }}</button> }</div>
+          @if (recientes.length) {
+            <div class="recent-list">
+              @for (item of (verTodo ? recientes : recientes.slice(0, 4)); track item.id) {
+                <button class="recent-item" type="button" (click)="cargarReciente(item)" title="Haga clic para cargar">
+                  <span>
+                    <strong>{{ item.texto_original }}</strong>
+                    <span class="recent-meta">
+                      <span>{{ item.codigo_idioma_origen || item.id_idioma_origen }} → {{ item.codigo_idioma_destino || item.id_idioma_destino }} {{ item.contexto ? '(' + item.contexto + ')' : '' }}</span>
+                      <time>{{ item.fecha_creacion }}</time>
+                    </span>
+                  </span>
+                  <i class="fa fa-angle-right" aria-hidden="true"></i>
+                </button>
+              }
+            </div>
+          } @else {
+            <p class="empty-state">Todavía no tienes traducciones recientes.</p>
+          }
+        </section>
+        <section class="panel support-panel" aria-labelledby="tips-title">
+          <h2 id="tips-title" class="section-title"><i class="fa fa-book" aria-hidden="true"></i> Consejos</h2>
+          <ul class="tips"><li>Selecciona el contexto adecuado para mejores resultados.</li><li>Puedes escribir una descripción adicional si es necesario.</li><li>Utiliza la variante regional para adaptar la traducción.</li><li>Activa las opciones para obtener más información y alternativas.</li></ul>
+        </section>
       </div>
     </div>
 
@@ -82,22 +123,31 @@
       <div class="configuration-grid">
         <div class="context-fields">
           <div class="select-grid">
-            <label>Contexto / Dominio <span class="select-wrap"><i class="fa fa-briefcase" aria-hidden="true"></i><select [(ngModel)]="dominio"><option>General</option><option>Académico</option><option>Profesional</option><option>Legal</option><option>Médico</option><option>Técnico</option></select></span></label>
+            <label>Contexto / Dominio <span class="select-wrap"><i class="fa fa-briefcase" aria-hidden="true"></i><select [(ngModel)]="dominio"><option>General</option><option>Personalizado</option><option>Académico</option><option>Profesional</option><option>Legal</option><option>Médico</option><option>Técnico</option><option>Comercial</option><option>Coloquial</option></select></span></label>
             <label>Tono <span class="select-wrap"><i class="fa fa-commenting-o" aria-hidden="true"></i><select [(ngModel)]="tono"><option>Neutral</option><option>Formal</option><option>Informal</option><option>Profesional</option></select></span></label>
             <label>Variante regional <span class="optional">(opcional)</span><span class="select-wrap"><i class="fa fa-map-marker" aria-hidden="true"></i><select [(ngModel)]="region"><option>Español (Latinoamérica)</option><option>Español (España)</option><option>Sin preferencia</option></select></span></label>
           </div>
-          <label class="context-label" for="contexto">Descripción adicional del contexto <span class="optional">(opcional)</span></label>
-          <div class="context-box"><textarea id="contexto" [(ngModel)]="contexto" maxlength="300" placeholder="Ej. Es un texto sobre servicios bancarios, para un cliente formal, etc."></textarea><span>{{ contexto.length }}/300</span></div>
+          @if (dominio === 'Personalizado') {
+            <div class="custom-context-group">
+              <label class="context-label" for="contexto">Descripción adicional del contexto <span class="optional">(opcional)</span></label>
+              <div class="context-box"><textarea id="contexto" [(ngModel)]="contexto" maxlength="300" placeholder="Ej. Es un texto sobre servicios bancarios, para un cliente formal, etc."></textarea><span>{{ contexto.length }}/300</span></div>
+            </div>
+          }
         </div>
         <div class="options">
           <h3>Otras opciones</h3>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="alternativas"><span class="switch" aria-hidden="true"></span>Mostrar alternativas de traducción</label>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="modismos"><span class="switch" aria-hidden="true"></span>Explicar modismos y expresiones</label>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="formatoLocal"><span class="switch" aria-hidden="true"></span>Adaptar formato local (fechas, monedas, etc.)</label>
-          <button class="translate-button" type="button" [disabled]="!texto.trim()" (click)="traducir()"><i class="fa fa-magic" aria-hidden="true"></i>Aplicar</button>
+          <button class="translate-button" type="button" [disabled]="!texto.trim() || cargando()" (click)="traducir()">
+            <i class="fa" [class.fa-magic]="!cargando()" [class.fa-spinner]="cargando()" [class.fa-spin]="cargando()" aria-hidden="true"></i>
+            {{ cargando() ? 'Traduciendo...' : 'Aplicar' }}
+          </button>
         </div>
       </div>
-      @if (mensaje()) { <p class="status-message" role="status">{{ mensaje() }}</p> }
+      @if (mensaje()) {
+        <p class="status-message" [class.status-error]="esError()" [class.status-success]="!esError()" role="status">{{ mensaje() }}</p>
+      }
     </aside>
   </div>
 </main>
