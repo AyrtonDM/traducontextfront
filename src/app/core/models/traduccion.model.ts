@@ -100,3 +100,14 @@ export interface RespuestaIdiomas {
   mensaje: string;
   resultado: Idioma[];
 }
+
+export interface ResultadoDeteccionIdioma {
+  codigo: string;
+  nombre: string;
+  confianza: number;
+}
+
+export interface RespuestaDeteccionIdioma {
+  mensaje: string;
+  resultado: ResultadoDeteccionIdioma;
+}

@@ -19,21 +19,32 @@
       <section class="panel translation-panel" aria-label="Editor de traducción">
         <div class="editor source-editor">
           <div class="editor-header">
-            <label for="texto-origen" class="section-title">Texto de origen</label>
+            <div class="header-label-wrap">
+              <label for="texto-origen" class="section-title">Texto de origen</label>
+              @if (detectandoIdioma()) {
+                <span class="detecting-badge"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i> Detectando idioma...</span>
+              }
+            </div>
             <div class="language-field">
               <span class="source-count">{{ texto.length }}/5000</span>
               <i class="fa fa-globe" aria-hidden="true"></i>
-              <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto()">
+              <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="onOrigenChange($event)">
+                @if (origen === 'auto') {
+                  <option value="auto">Detectando automáticamente...</option>
+                }
                 @for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
               </select>
             </div>
           </div>
-          <div class="text-box source-box">
-            <textarea id="texto-origen" maxlength="5000" [(ngModel)]="texto" (ngModelChange)="actualizarTexto()" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
+          <div class="text-box source-box" [class.dictando]="dictando()">
+            <textarea id="texto-origen" maxlength="5000" [ngModel]="texto" (ngModelChange)="onTextoChange($event)" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
             <button class="icon-button clear-button" type="button" aria-label="Borrar texto" (click)="limpiar()" [disabled]="!texto"><i class="fa fa-times" aria-hidden="true"></i></button>
             <div class="source-tools">
+              @if (dictando()) {
+                <span class="mic-listening-badge"><i class="fa fa-circle" aria-hidden="true"></i> Escuchando...</span>
+              }
               <button class="icon-button" type="button" disabled aria-label="Importar documento (próximamente)" title="Importar documento: próximamente"><i class="fa fa-file-text-o" aria-hidden="true"></i></button>
-              <button class="icon-button" type="button" disabled aria-label="Dictar texto (próximamente)" title="Dictado: próximamente"><i class="fa fa-microphone" aria-hidden="true"></i></button>
+              <button class="icon-button mic-button" [class.recording]="dictando()" type="button" aria-label="Dictar texto por voz" (click)="alternarDictado()" [title]="dictando() ? 'Detener dictado por voz' : 'Hablar para dictar texto'"><i class="fa" [class.fa-microphone]="!dictando()" [class.fa-stop]="dictando()" aria-hidden="true"></i></button>
               <button class="icon-button" type="button" disabled aria-label="Importar imagen (próximamente)" title="Importar imagen: próximamente"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
             </div>
           </div>

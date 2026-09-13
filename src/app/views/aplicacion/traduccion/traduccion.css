@@ -109,6 +109,29 @@ textarea::placeholder { color: var(--color-texto-secundario); opacity: .8; }
 
 .custom-context-group { animation: fadeIn .25s ease; }
 
+.header-label-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.detected-badge { background: color-mix(in srgb, var(--color-primario) 12%, var(--color-fondo)); color: var(--color-primario); border: 1px solid var(--borde); border-radius: 20px; font-size: 11px; font-weight: 600; padding: 2px 8px; cursor: pointer; transition: all .15s ease; animation: fadeIn .2s ease; }
+.detected-badge:hover { background: var(--color-primario); color: white; }
+.detecting-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--color-texto-secundario); animation: fadeIn .2s ease; }
+
+.mic-button { cursor: pointer; transition: all .15s ease; }
+.mic-button:hover:not(:disabled) { transform: scale(1.1); color: var(--color-primario); }
+.mic-button.recording { color: #ef4444 !important; animation: pulseRed 1s infinite alternate ease-in-out; }
+
+.source-box.dictando { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15); }
+.mic-listening-badge { font-size: 11px; font-weight: 600; color: #ef4444; display: flex; align-items: center; gap: 5px; margin-right: 6px; }
+.mic-listening-badge i { font-size: 8px; animation: blink 1s infinite ease-in-out; }
+
+@keyframes pulseRed {
+  0% { transform: scale(1); filter: drop-shadow(0 0 2px #ef4444); }
+  100% { transform: scale(1.18); filter: drop-shadow(0 0 6px #ef4444); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }

@@ -1,9 +1,12 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   EjemploTraduccion,
   Idioma,
+  ResultadoDeteccionIdioma,
   SolicitudTraduccionContextual,
   TraduccionHistorialItem,
 } from '../../../core/models/traduccion.model';
@@ -15,12 +18,15 @@ import { TraduccionService } from '../../../core/services/traduccion.service';
   templateUrl: './traduccion.html',
   styleUrl: './traduccion.css',
 })
-export class Traduccion implements OnInit {
+export class Traduccion implements OnInit, OnDestroy {
   private readonly traduccionService = inject(TraduccionService);
+  private readonly textoSubject = new Subject<string>();
+  private textoSub?: Subscription;
+  private recognition: any = null;
 
   texto = '';
   resultado = '';
-  origen = 'en';
+  origen = 'auto';
   destino = 'es';
   dominio = 'General';
   tono = 'Neutral';
@@ -32,16 +38,20 @@ export class Traduccion implements OnInit {
   favorito = false;
   ayuda = false;
   verTodo = false;
+  deteccionActiva = false;
 
   readonly cargando = signal(false);
+  readonly dictando = signal(false);
+  readonly detectandoIdioma = signal(false);
+  readonly idiomaDetectado = signal<ResultadoDeteccionIdioma | null>(null);
   readonly mensaje = signal('');
   readonly esError = signal(false);
   readonly listaAlternativas = signal<string[]>([]);
   readonly explicacionModismos = signal<string | null>(null);
 
   idiomas: Idioma[] = [
-    { id: 1, codigo: 'en', nombre: 'Inglés' },
-    { id: 2, codigo: 'es', nombre: 'Español' },
+    { id: 1, codigo: 'es', nombre: 'Español' },
+    { id: 2, codigo: 'en', nombre: 'Inglés' },
     { id: 3, codigo: 'pt', nombre: 'Portugués' },
     { id: 4, codigo: 'fr', nombre: 'Francés' },
     { id: 5, codigo: 'de', nombre: 'Alemán' },
@@ -64,6 +74,21 @@ export class Traduccion implements OnInit {
   ngOnInit(): void {
     this.cargarHistorial();
     this.cargarIdiomasBackend();
+
+    // Detección automática de idioma al escribir (con debounce)
+    this.textoSub = this.textoSubject
+      .pipe(
+        debounceTime(350),
+        distinctUntilChanged()
+      )
+      .subscribe((texto) => {
+        this.ejecutarDeteccion(texto);
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.textoSub?.unsubscribe();
+    this.detenerDictado();
   }
 
   cargarHistorial(): void {
@@ -73,9 +98,7 @@ export class Traduccion implements OnInit {
           this.recientes = resp.resultado;
         }
       },
-      error: () => {
-        // Silencioso o sin interrumpir vista
-      },
+      error: () => {},
     });
   }
 
@@ -86,14 +109,28 @@ export class Traduccion implements OnInit {
           this.idiomas = resp.resultado;
         }
       },
-      error: () => {
-        // Conserva idiomas por defecto
-      },
+      error: () => {},
     });
+  }
+
+  onTextoChange(nuevoTexto: string): void {
+    this.texto = nuevoTexto;
+    this.actualizarTexto();
+    this.textoSubject.next(nuevoTexto);
+  }
+
+  onOrigenChange(nuevoCodigo: string): void {
+    // El usuario cambió manualmente el idioma de origen
+    // Desactivar detección automática para respetar la selección manual
+    this.deteccionActiva = false;
+    this.actualizarTexto();
   }
 
   limpiar(): void {
     this.texto = '';
+    this.idiomaDetectado.set(null);
+    this.deteccionActiva = false;
+    this.origen = 'auto';
     this.actualizarTexto();
   }
 
@@ -106,10 +143,56 @@ export class Traduccion implements OnInit {
     this.explicacionModismos.set(null);
   }
 
+  ejecutarDeteccion(texto: string): void {
+    const limpio = texto.trim();
+    if (limpio.length < 3) {
+      this.idiomaDetectado.set(null);
+      if (this.deteccionActiva) {
+        // Solo resetear a 'auto' si veníamos de detección automática
+        this.origen = 'auto';
+        this.deteccionActiva = false;
+      }
+      return;
+    }
+
+    this.detectandoIdioma.set(true);
+    this.traduccionService.detectarIdioma(limpio).subscribe({
+      next: (resp) => {
+        this.detectandoIdioma.set(false);
+        if (resp && resp.resultado) {
+          const codigoDetectado = resp.resultado.codigo;
+
+          // Si el backend no pudo detectar con suficiente confianza, no cambiar el selector
+          if (codigoDetectado === 'desconocido' || !codigoDetectado) {
+            this.idiomaDetectado.set(null);
+            return;
+          }
+
+          this.idiomaDetectado.set(resp.resultado);
+
+          // Seleccionar automáticamente el idioma detectado en el selector de origen
+          if (this.origen === 'auto' || this.deteccionActiva) {
+            this.deteccionActiva = true;
+            // Si el destino ya es el idioma detectado, elegir otro
+            if (this.destino === codigoDetectado) {
+              this.destino = codigoDetectado === 'es' ? 'en' : 'es';
+            }
+            this.origen = codigoDetectado;
+          }
+        }
+      },
+      error: () => {
+        this.detectandoIdioma.set(false);
+      },
+    });
+  }
+
   cargarEjemplo(texto: string): void {
     this.texto = texto;
-    this.origen = 'en';
+    this.origen = 'auto';
+    this.deteccionActiva = false; // Resetear para que la deteccion lo cambie al detectado
     this.actualizarTexto();
+    this.ejecutarDeteccion(texto);
   }
 
   cargarReciente(item: TraduccionHistorialItem): void {
@@ -117,6 +200,7 @@ export class Traduccion implements OnInit {
     this.resultado = item.texto_traducido;
     if (item.codigo_idioma_origen) {
       this.origen = item.codigo_idioma_origen;
+      this.deteccionActiva = false; // Idioma ya conocido, no sobrescribir
     }
     if (item.codigo_idioma_destino) {
       this.destino = item.codigo_idioma_destino;
@@ -129,12 +213,23 @@ export class Traduccion implements OnInit {
   }
 
   intercambiar(): void {
-    [this.origen, this.destino] = [this.destino, this.origen];
+    const idiomaOrigenReal = this.origen === 'auto'
+      ? (this.idiomaDetectado()?.codigo || 'es')
+      : this.origen;
+
+    this.origen = this.destino;
+    this.destino = idiomaOrigenReal;
+    // Al intercambiar manualmente, desactivar deteccion automatica
+    this.deteccionActiva = false;
+
     if (this.resultado) {
       this.texto = this.resultado;
       this.resultado = '';
     }
     this.actualizarTexto();
+    if (this.texto) {
+      this.ejecutarDeteccion(this.texto);
+    }
   }
 
   traducir(): void {
@@ -155,14 +250,19 @@ export class Traduccion implements OnInit {
     this.listaAlternativas.set([]);
     this.explicacionModismos.set(null);
 
+    // Resolver idioma de origen si está en 'auto'
+    const origenFinal = this.origen === 'auto'
+      ? (this.idiomaDetectado()?.codigo || 'en')
+      : this.origen;
+
     const solicitud: SolicitudTraduccionContextual = {
       texto: textoLimpio,
-      idioma_origen: this.origen,
+      idioma_origen: origenFinal,
       idioma_destino: this.destino,
       dominio: this.dominio,
       tono: this.tono,
       variante_regional: this.region,
-      contexto_adicional: this.contexto.trim() || undefined,
+      contexto_adicional: this.dominio === 'Personalizado' ? (this.contexto.trim() || undefined) : undefined,
       mostrar_alternativas: this.alternativas,
       explicar_modismos: this.modismos,
       adaptar_formato_local: this.formatoLocal,
@@ -190,6 +290,101 @@ export class Traduccion implements OnInit {
         this.mensaje.set(detalle);
       },
     });
+  }
+
+  alternarDictado(): void {
+    if (this.dictando()) {
+      this.detenerDictado();
+    } else {
+      this.iniciarDictado();
+    }
+  }
+
+  iniciarDictado(): void {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      this.mensaje.set(
+        'El reconocimiento de voz no está soportado en este navegador. Utiliza Google Chrome o Microsoft Edge.'
+      );
+      this.esError.set(true);
+      return;
+    }
+
+    try {
+      this.recognition = new SpeechRecognition();
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+
+      const langMap: Record<string, string> = {
+        es: 'es-ES',
+        en: 'en-US',
+        fr: 'fr-FR',
+        pt: 'pt-BR',
+        de: 'de-DE',
+        it: 'it-IT',
+        ja: 'ja-JP',
+        zh: 'zh-CN',
+        auto: 'es-ES',
+      };
+
+      const codigoLang = this.origen === 'auto'
+        ? (this.idiomaDetectado()?.codigo || 'es')
+        : this.origen;
+
+      this.recognition.lang = langMap[codigoLang] || 'es-ES';
+
+      this.recognition.onstart = () => {
+        this.dictando.set(true);
+        this.mensaje.set('Escuchando... puedes hablar al micrófono.');
+        this.esError.set(false);
+      };
+
+      this.recognition.onresult = (event: any) => {
+        let transcripcion = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcripcion += event.results[i][0].transcript;
+        }
+        if (transcripcion) {
+          this.texto = transcripcion;
+          this.onTextoChange(this.texto);
+        }
+      };
+
+      this.recognition.onerror = (event: any) => {
+        this.dictando.set(false);
+        if (event.error === 'not-allowed') {
+          this.mensaje.set('Acceso al micrófono denegado. Permite el uso del micrófono en tu navegador.');
+          this.esError.set(true);
+        } else if (event.error !== 'no-speech') {
+          this.mensaje.set(`Error en dictado: ${event.error}`);
+          this.esError.set(true);
+        }
+      };
+
+      this.recognition.onend = () => {
+        this.dictando.set(false);
+      };
+
+      this.recognition.start();
+    } catch {
+      this.dictando.set(false);
+      this.mensaje.set('No se pudo inicializar el micrófono.');
+      this.esError.set(true);
+    }
+  }
+
+  detenerDictado(): void {
+    if (this.recognition) {
+      try {
+        this.recognition.stop();
+      } catch {}
+      this.recognition = null;
+    }
+    this.dictando.set(false);
+    this.mensaje.set('Dictado detenido.');
   }
 
   seleccionarAlternativa(alt: string): void {

@@ -7,6 +7,7 @@ import {
   RespuestaTraduccionContextual,
   RespuestaHistorialTraducciones,
   RespuestaIdiomas,
+  RespuestaDeteccionIdioma,
 } from '../models/traduccion.model';
 
 @Injectable({
@@ -32,6 +33,13 @@ export class TraduccionService {
   obtenerIdiomas(): Observable<RespuestaIdiomas> {
     return this.http.get<RespuestaIdiomas>(
       `${this.apiUrl}/traducciones/idiomas`
+    );
+  }
+
+  detectarIdioma(texto: string): Observable<RespuestaDeteccionIdioma> {
+    return this.http.post<RespuestaDeteccionIdioma>(
+      `${this.apiUrl}/traducciones/detectar-idioma`,
+      { texto }
     );
   }
 }
