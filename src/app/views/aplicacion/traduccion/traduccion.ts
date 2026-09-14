@@ -23,10 +23,12 @@ export class Traduccion implements OnInit, OnDestroy {
   private readonly textoSubject = new Subject<string>();
   private textoSub?: Subscription;
   private recognition: any = null;
+  private _cambioProgramatico = false;
 
   texto = '';
   resultado = '';
   origen = 'auto';
+  idiomasBase: import('../../../core/models/traduccion.model').Idioma[] = [];
   destino = 'es';
   dominio = 'General';
   tono = 'Neutral';
@@ -107,6 +109,7 @@ export class Traduccion implements OnInit, OnDestroy {
       next: (resp) => {
         if (resp && resp.resultado && resp.resultado.length > 0) {
           this.idiomas = resp.resultado;
+          this.idiomasBase = [...resp.resultado];
         }
       },
       error: () => {},
@@ -120,6 +123,10 @@ export class Traduccion implements OnInit, OnDestroy {
   }
 
   onOrigenChange(nuevoCodigo: string): void {
+    // Ignorar cambios programáticos (ej: cuando la detección automática asigna el idioma)
+    if (this._cambioProgramatico) {
+      return;
+    }
     // El usuario cambió manualmente el idioma de origen
     // Desactivar detección automática para respetar la selección manual
     this.deteccionActiva = false;
@@ -173,11 +180,26 @@ export class Traduccion implements OnInit, OnDestroy {
           // Seleccionar automáticamente el idioma detectado en el selector de origen
           if (this.origen === 'auto' || this.deteccionActiva) {
             this.deteccionActiva = true;
+
+            // Solo seleccionar si el idioma detectado está en la lista de idiomas soportados
+            const existeEnLista = this.idiomas.some(i => i.codigo === codigoDetectado);
+            if (!existeEnLista) {
+              // El idioma no está soportado en el sistema, no cambiar el selector
+              return;
+            }
+
             // Si el destino ya es el idioma detectado, elegir otro
             if (this.destino === codigoDetectado) {
               this.destino = codigoDetectado === 'es' ? 'en' : 'es';
             }
-            this.origen = codigoDetectado;
+
+            // Forzar cambio en Angular: asignar vacío primero para que detecte el cambio
+            this._cambioProgramatico = true;
+            this.origen = '';
+            setTimeout(() => {
+              this.origen = codigoDetectado;
+              this._cambioProgramatico = false;
+            }, 0);
           }
         }
       },
