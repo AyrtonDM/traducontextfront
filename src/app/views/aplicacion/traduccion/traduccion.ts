@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
@@ -20,6 +20,7 @@ import { TraduccionService } from '../../../core/services/traduccion.service';
 })
 export class Traduccion implements OnInit, OnDestroy {
   private readonly traduccionService = inject(TraduccionService);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly textoSubject = new Subject<string>();
   private textoSub?: Subscription;
   private recognition: any = null;
@@ -193,13 +194,11 @@ export class Traduccion implements OnInit, OnDestroy {
               this.destino = codigoDetectado === 'es' ? 'en' : 'es';
             }
 
-            // Forzar cambio en Angular: asignar vacío primero para que detecte el cambio
+            // Asignar el idioma detectado y forzar actualización del DOM
             this._cambioProgramatico = true;
-            this.origen = '';
-            setTimeout(() => {
-              this.origen = codigoDetectado;
-              this._cambioProgramatico = false;
-            }, 0);
+            this.origen = codigoDetectado;
+            this._cambioProgramatico = false;
+            this.cdr.detectChanges();
           }
         }
       },
