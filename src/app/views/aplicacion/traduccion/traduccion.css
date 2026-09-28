@@ -1,4 +1,4 @@
-﻿:host {
+:host {
   --tinta: color-mix(in srgb, var(--color-primario) 65%, var(--color-texto));
   --borde: color-mix(in srgb, var(--color-primario) 12%, var(--color-fondo));
   --suave: color-mix(in srgb, var(--color-primario) 6%, var(--color-fondo));
@@ -86,3 +86,6 @@ textarea::placeholder { color: var(--color-texto-secundario); opacity: .8; }
 
 
 
+
+.cargando-texto { display: inline-flex; align-items: center; gap: 8px; color: var(--color-texto-secundario); font-style: italic; }
+.traduciendo { opacity: 0.65; transition: opacity 0.2s ease; }

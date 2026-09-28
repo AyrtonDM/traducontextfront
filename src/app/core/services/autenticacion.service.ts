@@ -1,6 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
   RegistroUsuario,
@@ -17,7 +18,6 @@ import {
 export class AutenticacionService {
 
   private http = inject(HttpClient);
-
   private apiUrl = environment.apiUrl;
 
   registrarUsuario(
@@ -77,6 +77,22 @@ export class AutenticacionService {
     return this.http.get<PerfilUsuarioRespuesta>(`${this.apiUrl}/usuarios/me`);
   }
 
+  cargarYGuardarPerfil(): Observable<UsuarioAutenticado | null> {
+    return this.obtenerPerfilUsuario().pipe(
+      map((respuesta) => {
+        const usuario = this.normalizarPerfilUsuario(respuesta);
+        if (usuario) {
+          this.guardarUsuarioActual(usuario);
+        }
+        return usuario;
+      }),
+      catchError((error) => {
+        console.error('Error al cargar perfil del usuario:', error);
+        return of(null);
+      })
+    );
+  }
+
   obtenerUsuarioActual(): UsuarioAutenticado | null {
     const usuarioEnStorage = localStorage.getItem('usuario_actual');
 
@@ -100,26 +116,30 @@ export class AutenticacionService {
     localStorage.setItem('usuario_actual', JSON.stringify(usuario));
   }
 
-  normalizarPerfilUsuario(respuesta: PerfilUsuarioRespuesta | PerfilUsuario | null | undefined): UsuarioAutenticado | null {
-    const perfilCrudo = (respuesta as PerfilUsuarioRespuesta).resultado;
+  normalizarPerfilUsuario(respuesta: any): UsuarioAutenticado | null {
+    if (!respuesta) {
+      return null;
+    }
+
+    const res = respuesta.resultado !== undefined ? respuesta.resultado : respuesta;
+    const perfilCrudo = Array.isArray(res) ? res[0] : res;
 
     if (!perfilCrudo || typeof perfilCrudo !== 'object') {
       return null;
     }
 
-    const perfil = perfilCrudo as PerfilUsuario;
     const usuario: UsuarioAutenticado = {
-      nombre: perfil.nombre ?? '',
-      correo: perfil.correo ?? '',
-      rol: this.extraerNombreRol(perfil),
-      permisos: perfil.permisos ?? [],
+      nombre: perfilCrudo.nombre ?? '',
+      correo: perfilCrudo.correo ?? '',
+      rol: this.extraerNombreRol(perfilCrudo),
+      permisos: Array.isArray(perfilCrudo.permisos) ? perfilCrudo.permisos : [],
     };
 
     return usuario;
   }
 
-  private extraerNombreRol(perfil: PerfilUsuario): string {
-    const rol = perfil.rol ?? '';
+  private extraerNombreRol(perfil: any): string {
+    const rol = perfil?.rol;
 
     if (typeof rol === 'string') {
       return rol;

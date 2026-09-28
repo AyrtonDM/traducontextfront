@@ -1,4 +1,4 @@
-<main class="traduccion-page">
+﻿<main class="traduccion-page">
   <nav class="breadcrumb" aria-label="Ruta de navegación">
     <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Traducción</span>
   </nav>
@@ -23,7 +23,8 @@
         <div class="language-field">
           <span class="source-count">{{ texto.length }}/5000</span>
           <i class="fa fa-globe" aria-hidden="true"></i>
-          <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto()">
+          <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto(true)">
+            <option value="">Seleccione...</option>
             @for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
           </select>
         </div>
@@ -42,10 +43,16 @@
     <div class="editor target-editor">
       <div class="editor-header">
         <h2 class="section-title">Traducción</h2>
-        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto()">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
+        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto(true)">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
       </div>
       <div class="text-box result-box">
-        <p aria-live="polite">{{ resultado || 'Tu traducción aparecerá aquí.' }}</p>
+        <p aria-live="polite" [class.traduciendo]="cargando()">
+          @if (cargando() && !resultado) {
+            <span class="cargando-texto"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...</span>
+          } @else {
+            {{ resultado || 'Tu traducción aparecerá aquí.' }}
+          }
+        </p>
         <div class="result-tools">
           <button class="icon-button" type="button" aria-label="Marcar como favorito en esta vista" [attr.aria-pressed]="favorito" [disabled]="!resultado" (click)="favorito = !favorito"><i class="fa" [class.fa-star]="favorito" [class.fa-star-o]="!favorito" aria-hidden="true"></i></button>
           <button class="icon-button" type="button" aria-label="Copiar traducción" [disabled]="!resultado" (click)="copiar()"><i class="fa fa-file-o" aria-hidden="true"></i></button>
@@ -94,7 +101,10 @@
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="alternativas"><span class="switch" aria-hidden="true"></span>Mostrar alternativas de traducción</label>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="modismos"><span class="switch" aria-hidden="true"></span>Explicar modismos y expresiones</label>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="formatoLocal"><span class="switch" aria-hidden="true"></span>Adaptar formato local (fechas, monedas, etc.)</label>
-          <button class="translate-button" type="button" [disabled]="!texto.trim()" (click)="traducir()"><i class="fa fa-magic" aria-hidden="true"></i>Aplicar</button>
+          <button class="translate-button" type="button" [disabled]="!texto.trim() || cargando()" (click)="traducir()">
+            <i class="fa" [class.fa-magic]="!cargando()" [class.fa-spinner]="cargando()" [class.fa-spin]="cargando()" aria-hidden="true"></i>
+            {{ cargando() ? 'Traduciendo...' : 'Aplicar' }}
+          </button>
         </div>
       </div>
       @if (mensaje()) { <p class="status-message" role="status">{{ mensaje() }}</p> }

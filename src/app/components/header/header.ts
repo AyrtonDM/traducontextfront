@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+﻿import { Component, inject, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { UsuarioAutenticado } from '../../core/models/autenticacion.model';
 import { AutenticacionService } from '../../core/services/autenticacion.service';
@@ -24,7 +24,7 @@ export class Header implements OnInit {
   ngOnInit(): void {
     const usuarioGuardado = this.authService.obtenerUsuarioActual();
 
-    if (usuarioGuardado) {
+    if (usuarioGuardado && usuarioGuardado.nombre) {
       this.usuarioActual = usuarioGuardado;
       return;
     }
@@ -46,29 +46,22 @@ export class Header implements OnInit {
   }
 
   cerrarSesion(): void {
-
     this.authService.cerrarSesion().subscribe({
       next: () => {
         this.finalizarSesion();
       },
-
       error: (error) => {
         console.error('Error al cerrar sesion:', error);
-
-        // Aunque el backend falle, eliminamos el token local.
         this.finalizarSesion();
       }
     });
   }
 
   private cargarUsuarioActual(): void {
-    this.authService.obtenerPerfilUsuario().subscribe({
-      next: (respuesta) => {
-        const usuario = this.authService.normalizarPerfilUsuario(respuesta);
-
+    this.authService.cargarYGuardarPerfil().subscribe({
+      next: (usuario) => {
         if (usuario) {
           this.usuarioActual = usuario;
-          this.authService.guardarUsuarioActual(usuario);
         }
       },
       error: (error) => {

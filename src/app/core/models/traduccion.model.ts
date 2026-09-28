@@ -51,3 +51,26 @@ export interface TraduccionSolicitud {
   idIdiomaOrigen: number;
   idIdiomaDestino: number;
 }
+
+export interface RealizarTraduccionSolicitud {
+  idioma_destino: string;
+  texto_a_traducir: string;
+  idioma_origen: string | null;
+  id_contexto: number | null;
+}
+
+export interface RealizarTraduccionResultado {
+  texto_origen: string;
+  idioma_origen: string;
+  idioma_destino: string;
+  traduccion: string;
+  confianza_deteccion: number | null;
+  id_contexto: number | null;
+  nombre_contexto: string | null;
+  analisis_contextual: string | null;
+}
+
+export interface RealizarTraduccionRespuesta {
+  mensaje: string;
+  resultado: RealizarTraduccionResultado;
+}

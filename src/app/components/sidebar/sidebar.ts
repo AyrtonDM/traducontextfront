@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+﻿import { Component, inject, OnInit } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AutenticacionService } from '../../core/services/autenticacion.service';
 import { UsuarioAutenticado } from '../../core/models/autenticacion.model';
@@ -18,7 +18,18 @@ export class Sidebar implements OnInit {
     usuarioActual: UsuarioAutenticado | null = null;
 
     ngOnInit(): void {
-        this.usuarioActual = this.authService.obtenerUsuarioActual();
+        const usuarioGuardado = this.authService.obtenerUsuarioActual();
+
+        if (usuarioGuardado && usuarioGuardado.nombre) {
+            this.usuarioActual = usuarioGuardado;
+            return;
+        }
+
+        this.authService.cargarYGuardarPerfil().subscribe((usuario) => {
+            if (usuario) {
+                this.usuarioActual = usuario;
+            }
+        });
     }
 
     tienePermiso(permiso: string): boolean {
@@ -26,16 +37,12 @@ export class Sidebar implements OnInit {
     }
 
     cerrarSesion(): void {
-
         this.authService.cerrarSesion().subscribe({
             next: () => {
                 this.finalizarSesion();
             },
-
             error: (error) => {
                 console.error('Error al cerrar sesion:', error);
-
-                // Aunque el backend falle, eliminamos el token local.
                 this.finalizarSesion();
             }
         });

@@ -1,6 +1,7 @@
-import { Component, inject } from '@angular/core';
+﻿import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { switchMap } from 'rxjs/operators';
 import { AutenticacionService } from '../../../core/services/autenticacion.service';
 
 @Component({
@@ -55,20 +56,31 @@ export class InicioSesion {
 
     const { email, password } = this.loginForm.getRawValue();
 
-    this.authService.iniciarSesion(email, password).subscribe({
-      next: (respuesta) => {
-        this.isLoading = false;
-        // Se guarda el token retornado en la clave resultado que es una lista con el token
-        if (respuesta.resultado && respuesta.resultado.length > 0) {
-          const token = respuesta.resultado[0].token;
+    this.authService.iniciarSesion(email, password).pipe(
+      switchMap((respuesta) => {
+        let token = '';
+        if (Array.isArray(respuesta?.resultado) && respuesta.resultado.length > 0) {
+          token = respuesta.resultado[0].token || respuesta.resultado[0].access_token;
+        } else if (respuesta?.resultado && typeof respuesta.resultado === 'object') {
+          token = respuesta.resultado.token || respuesta.resultado.access_token;
+        } else if (respuesta?.token || respuesta?.access_token) {
+          token = respuesta.token || respuesta.access_token;
+        }
+
+        if (token) {
           localStorage.setItem('auth_token', token);
         }
-        // Redirige al panel principal/home una vez logueado
+
+        return this.authService.cargarYGuardarPerfil();
+      })
+    ).subscribe({
+      next: () => {
+        this.isLoading = false;
         this.router.navigate(['/inicio']);
       },
       error: (err) => {
         this.isLoading = false;
-        this.backendError = err.error?.detail || 'Correo o contraseña incorrectos.';
+        this.backendError = err.error?.detail || err.error?.mensaje || 'Correo o contraseña incorrectos.';
       }
     });
   }
