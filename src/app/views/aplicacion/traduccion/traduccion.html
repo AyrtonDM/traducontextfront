@@ -24,7 +24,7 @@
           <span class="source-count">{{ texto.length }}/5000</span>
           <i class="fa fa-globe" aria-hidden="true"></i>
           <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto()">
-            @for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
+            @for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
           </select>
         </div>
       </div>
@@ -42,7 +42,7 @@
     <div class="editor target-editor">
       <div class="editor-header">
         <h2 class="section-title">Traducción</h2>
-        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto()">@for (idioma of idiomas; track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
+        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto()">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
       </div>
       <div class="text-box result-box">
         <p aria-live="polite">{{ resultado || 'Tu traducción aparecerá aquí.' }}</p>

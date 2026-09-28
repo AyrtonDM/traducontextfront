@@ -1,7 +1,8 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EjemploTraduccion, Idioma, Traduccion as TraduccionModelo } from '../../../core/models/traduccion.model';
+import { TraduccionService } from '../../../core/services/traduccion.service';
 
 @Component({
   selector: 'app-traduccion',
@@ -10,6 +11,7 @@ import { EjemploTraduccion, Idioma, Traduccion as TraduccionModelo } from '../..
   styleUrl: './traduccion.css',
 })
 export class Traduccion {
+  private readonly traduccionService = inject(TraduccionService);
   texto = '';
   resultado = '';
   origen = 'en';
@@ -25,12 +27,7 @@ export class Traduccion {
   ayuda = false;
   verTodo = false;
   readonly mensaje = signal('');
-  readonly idiomas: Idioma[] = [
-    { id: 1, codigo: 'en', nombre: 'Inglés' },
-    { id: 2, codigo: 'es', nombre: 'Español' },
-    { id: 3, codigo: 'pt', nombre: 'Portugués' },
-    { id: 4, codigo: 'fr', nombre: 'Francés' },
-  ];
+  readonly idiomas = signal<Idioma[]>([]);
   readonly ejemplos: EjemploTraduccion[] = [
     { nombre: 'Texto académico', texto: 'The study examines the impact of technology on education.' },
     { nombre: 'Correo profesional', texto: 'Please find attached the report for your review.' },
@@ -40,6 +37,17 @@ export class Traduccion {
     { nombre: 'Redes sociales', texto: 'Discover something new every day!' },
   ];
   readonly recientes: TraduccionModelo[] = [];
+
+  constructor() {
+    this.cargarIdiomas();
+  }
+
+  private cargarIdiomas(): void {
+    this.traduccionService.obtenerIdiomas().subscribe({
+      next: (respuesta) => this.idiomas.set(respuesta.resultado),
+      error: () => this.mensaje.set('No se pudieron cargar los idiomas disponibles.'),
+    });
+  }
 
   limpiar(): void {
     this.texto = '';

@@ -21,6 +21,11 @@ export interface Idioma {
   traduccionesDestino?: Traduccion[];
 }
 
+export interface IdiomasRespuesta {
+  mensaje: string;
+  resultado: Idioma[];
+}
+
 export interface EjemploTraduccion {
   nombre: string;
   texto: string;
