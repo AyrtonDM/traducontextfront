@@ -63,10 +63,6 @@
       </section>
 
       <div class="bottom-grid">
-    <section class="panel support-panel" aria-labelledby="examples-title">
-      <h2 id="examples-title" class="section-title"><i class="fa fa-lightbulb-o" aria-hidden="true"></i> Ejemplos de uso</h2>
-      <div class="example-chips">@for (ejemplo of ejemplos; track ejemplo.nombre) { <button type="button" (click)="cargarEjemplo(ejemplo.texto)">{{ ejemplo.nombre }}</button> }</div>
-    </section>
     <section class="panel support-panel" aria-labelledby="recent-title">
       <div class="support-heading"><h2 id="recent-title" class="section-title"><i class="fa fa-clock-o" aria-hidden="true"></i> Traducciones recientes</h2>@if (recientes.length) { <button type="button" class="text-button" (click)="verTodo = !verTodo" [attr.aria-expanded]="verTodo">{{ verTodo ? 'Ver menos' : 'Ver todo' }}</button> }</div>
       @if (recientes.length) {
@@ -77,10 +73,6 @@
         <p class="empty-state">Todavía no tienes traducciones recientes.</p>
       }
     </section>
-    <section class="panel support-panel" aria-labelledby="tips-title">
-      <h2 id="tips-title" class="section-title"><i class="fa fa-book" aria-hidden="true"></i> Consejos</h2>
-      <ul class="tips"><li>Selecciona el contexto adecuado para mejores resultados.</li><li>Puedes escribir una descripción adicional si es necesario.</li><li>Utiliza la variante regional para adaptar la traducción.</li><li>Activa las opciones para obtener más información y alternativas.</li></ul>
-    </section>
       </div>
     </div>
 
@@ -90,11 +82,11 @@
         <div class="context-fields">
           <div class="select-grid">
             <label>Contexto / Dominio <span class="select-wrap"><i class="fa fa-briefcase" aria-hidden="true"></i><select [(ngModel)]="dominio"><option>General</option><option>Académico</option><option>Profesional</option><option>Legal</option><option>Médico</option><option>Técnico</option></select></span></label>
+            <label class="context-label" for="contexto">Descripción adicional del contexto <span class="optional">(opcional)</span></label>
+            <div class="context-box"><textarea id="contexto" [(ngModel)]="contexto" maxlength="300" placeholder="Ej. Es un texto sobre servicios bancarios, para un cliente formal, etc."></textarea><span>{{ contexto.length }}/300</span></div>
             <label>Tono <span class="select-wrap"><i class="fa fa-commenting-o" aria-hidden="true"></i><select [(ngModel)]="tono"><option>Neutral</option><option>Formal</option><option>Informal</option><option>Profesional</option></select></span></label>
             <label>Variante regional <span class="optional">(opcional)</span><span class="select-wrap"><i class="fa fa-map-marker" aria-hidden="true"></i><select [(ngModel)]="region"><option>Español (Latinoamérica)</option><option>Español (España)</option><option>Sin preferencia</option></select></span></label>
           </div>
-          <label class="context-label" for="contexto">Descripción adicional del contexto <span class="optional">(opcional)</span></label>
-          <div class="context-box"><textarea id="contexto" [(ngModel)]="contexto" maxlength="300" placeholder="Ej. Es un texto sobre servicios bancarios, para un cliente formal, etc."></textarea><span>{{ contexto.length }}/300</span></div>
         </div>
         <div class="options">
           <h3>Otras opciones</h3>
