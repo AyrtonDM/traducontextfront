@@ -43,7 +43,7 @@
     <div class="editor target-editor">
       <div class="editor-header">
         <h2 class="section-title">Traducción</h2>
-        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [(ngModel)]="destino" (ngModelChange)="actualizarTexto(true)">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
+        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [ngModel]="destino" (ngModelChange)="onDestinoChange($event)">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
       </div>
       <div class="text-box result-box">
         <p aria-live="polite" [class.traduciendo]="cargando()">
@@ -63,16 +63,16 @@
       </section>
 
       <div class="bottom-grid">
-    <section class="panel support-panel" aria-labelledby="recent-title">
-      <div class="support-heading"><h2 id="recent-title" class="section-title"><i class="fa fa-clock-o" aria-hidden="true"></i> Traducciones recientes</h2>@if (recientes.length) { <button type="button" class="text-button" (click)="verTodo = !verTodo" [attr.aria-expanded]="verTodo">{{ verTodo ? 'Ver menos' : 'Ver todo' }}</button> }</div>
-      @if (recientes.length) {
-        <div class="recent-list">@for (item of recientes; track item.textoOriginal) {
-          <button class="recent-item" type="button"><span><strong>{{ item.textoOriginal }}</strong><span class="recent-meta">{{ item.idIdiomaOrigen }} → {{ item.idIdiomaDestino }} <time>{{ item.fechaCreacion }}</time></span></span><i class="fa fa-file-o" aria-hidden="true"></i></button>
-        }</div>
-      } @else {
-        <p class="empty-state">Todavía no tienes traducciones recientes.</p>
-      }
-    </section>
+        <section class="panel support-panel" aria-labelledby="recent-title">
+          <div class="support-heading"><h2 id="recent-title" class="section-title"><i class="fa fa-clock-o" aria-hidden="true"></i> Traducciones recientes</h2>@if (recientes.length) { <button type="button" class="text-button" (click)="verTodo = !verTodo" [attr.aria-expanded]="verTodo">{{ verTodo ? 'Ver menos' : 'Ver todo' }}</button> }</div>
+          @if (recientes.length) {
+            <div class="recent-list">@for (item of recientes; track item.textoOriginal) {
+              <button class="recent-item" type="button"><span><strong>{{ item.textoOriginal }}</strong><span class="recent-meta">{{ item.idIdiomaOrigen }} → {{ item.idIdiomaDestino }} <time>{{ item.fechaCreacion }}</time></span></span><i class="fa fa-file-o" aria-hidden="true"></i></button>
+            }</div>
+          } @else {
+            <p class="empty-state">Todavía no tienes traducciones recientes.</p>
+          }
+        </section>
       </div>
     </div>
 
@@ -81,11 +81,38 @@
       <div class="configuration-grid">
         <div class="context-fields">
           <div class="select-grid">
-            <label>Contexto / Dominio <span class="select-wrap"><i class="fa fa-briefcase" aria-hidden="true"></i><select [(ngModel)]="dominio"><option>General</option><option>Académico</option><option>Profesional</option><option>Legal</option><option>Médico</option><option>Técnico</option></select></span></label>
-            <label class="context-label" for="contexto">Descripción adicional del contexto <span class="optional">(opcional)</span></label>
-            <div class="context-box"><textarea id="contexto" [(ngModel)]="contexto" maxlength="300" placeholder="Ej. Es un texto sobre servicios bancarios, para un cliente formal, etc."></textarea><span>{{ contexto.length }}/300</span></div>
-            <label>Tono <span class="select-wrap"><i class="fa fa-commenting-o" aria-hidden="true"></i><select [(ngModel)]="tono"><option>Neutral</option><option>Formal</option><option>Informal</option><option>Profesional</option></select></span></label>
-            <label>Variante regional <span class="optional">(opcional)</span><span class="select-wrap"><i class="fa fa-map-marker" aria-hidden="true"></i><select [(ngModel)]="region"><option>Español (Latinoamérica)</option><option>Español (España)</option><option>Sin preferencia</option></select></span></label>
+            <label>Contexto / Dominio
+              <span class="select-wrap">
+                <i class="fa fa-briefcase" aria-hidden="true"></i>
+                <select [ngModel]="idContextoSeleccionado" (ngModelChange)="onContextoChange($event)">
+                  @for (ctx of contextos(); track ctx.id_contexto) {
+                    <option [ngValue]="ctx.id_contexto">{{ ctx.nombre }}</option>
+                  }
+                  <option [ngValue]="'NUEVO'">+ Nuevo contexto</option>
+                </select>
+              </span>
+            </label>
+            <label>Tono
+              <span class="select-wrap">
+                <i class="fa fa-commenting-o" aria-hidden="true"></i>
+                <select [(ngModel)]="idTonoSeleccionado" (ngModelChange)="actualizarTexto(true)">
+                  @for (t of tonos(); track t.id_tono) {
+                    <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
+                  }
+                </select>
+              </span>
+            </label>
+            <label>Variante regional <span class="optional">(opcional)</span>
+              <span class="select-wrap">
+                <i class="fa fa-map-marker" aria-hidden="true"></i>
+                <select [(ngModel)]="idVarianteSeleccionada" (ngModelChange)="actualizarTexto(true)">
+                  <option [ngValue]="null">Sin preferencia</option>
+                  @for (v of variantesDisponibles; track v.id_variante_regional) {
+                    <option [ngValue]="v.id_variante_regional">{{ v.nombre }}</option>
+                  }
+                </select>
+              </span>
+            </label>
           </div>
         </div>
         <div class="options">
@@ -102,4 +129,56 @@
       @if (mensaje()) { <p class="status-message" role="status">{{ mensaje() }}</p> }
     </aside>
   </div>
+
+  @if (modalNuevoContextoAbierto()) {
+    <div class="modal-overlay" (click)="cancelarModalContexto()">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <h3 id="modal-title"><i class="fa fa-plus-circle" aria-hidden="true"></i> Nuevo contexto</h3>
+          <button type="button" class="icon-button modal-close" aria-label="Cerrar modal" (click)="cancelarModalContexto()">
+            <i class="fa fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="nombre-contexto">Nombre del contexto <span class="required">*</span></label>
+            <input
+              id="nombre-contexto"
+              type="text"
+              maxlength="100"
+              [(ngModel)]="nombreNuevoContexto"
+              placeholder="Ej. Técnico, Legal, Médico, Financiero..."
+              [disabled]="guardandoContexto()"
+            />
+          </div>
+
+          <div class="modal-field">
+            <label for="descripcion-contexto">Descripción <span class="optional">(opcional)</span></label>
+            <textarea
+              id="descripcion-contexto"
+              maxlength="500"
+              [(ngModel)]="descripcionNuevoContexto"
+              placeholder="Describe las particularidades o vocabulario de este contexto..."
+              [disabled]="guardandoContexto()"
+            ></textarea>
+          </div>
+
+          @if (errorModal()) {
+            <p class="modal-error"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorModal() }}</p>
+          }
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancelar" (click)="cancelarModalContexto()" [disabled]="guardandoContexto()">
+            Cancelar
+          </button>
+          <button type="button" class="btn-guardar" (click)="guardarModalContexto()" [disabled]="!nombreNuevoContexto.trim() || guardandoContexto()">
+            <i class="fa" [class.fa-check]="!guardandoContexto()" [class.fa-spinner]="guardandoContexto()" [class.fa-spin]="guardandoContexto()" aria-hidden="true"></i>
+            {{ guardandoContexto() ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </main>

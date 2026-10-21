@@ -5,10 +5,12 @@ import { RouterLink } from '@angular/router';
 import { merge, of, Subject } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import {
-  EjemploTraduccion,
+  ContextoItem,
   Idioma,
   RealizarTraduccionSolicitud,
-  Traduccion as TraduccionModelo
+  TonoItem,
+  Traduccion as TraduccionModelo,
+  VarianteRegionalItem
 } from '../../../core/models/traduccion.model';
 import { TraduccionService } from '../../../core/services/traduccion.service';
 
@@ -25,10 +27,9 @@ export class Traduccion {
   origen = '';
   destino = 'en';
   idiomaOrigenDetectado: string | null = null;
-  dominio = 'General';
-  tono = 'Neutral';
-  region = 'Español (Latinoamérica)';
-  contexto = '';
+  idContextoSeleccionado: number | null = null;
+  idTonoSeleccionado: number | null = null;
+  idVarianteSeleccionada: number | null = null;
   alternativas = true;
   modismos = false;
   formatoLocal = false;
@@ -38,14 +39,17 @@ export class Traduccion {
   readonly cargando = signal(false);
   readonly mensaje = signal('');
   readonly idiomas = signal<Idioma[]>([]);
-  readonly ejemplos: EjemploTraduccion[] = [
-    { nombre: 'Texto académico', texto: 'The study examines the impact of technology on education.' },
-    { nombre: 'Correo profesional', texto: 'Please find attached the report for your review.' },
-    { nombre: 'Documento legal', texto: 'The contract must be signed.' },
-    { nombre: 'Conversación informal', texto: 'Hi! How has your day been?' },
-    { nombre: 'Términos técnicos', texto: 'The server processes incoming requests.' },
-    { nombre: 'Redes sociales', texto: 'Discover something new every day!' },
-  ];
+  readonly contextos = signal<ContextoItem[]>([]);
+  readonly tonos = signal<TonoItem[]>([]);
+  readonly variantes = signal<VarianteRegionalItem[]>([]);
+
+  // Modal nuevo contexto
+  readonly modalNuevoContextoAbierto = signal(false);
+  nombreNuevoContexto = '';
+  descripcionNuevoContexto = '';
+  readonly guardandoContexto = signal(false);
+  readonly errorModal = signal('');
+
   readonly recientes: TraduccionModelo[] = [];
 
   private readonly debouncedTrigger$ = new Subject<string>();
@@ -53,7 +57,21 @@ export class Traduccion {
 
   constructor() {
     this.cargarIdiomas();
+    this.cargarContextos();
+    this.cargarTonos();
+    this.cargarVariantes();
     this.configurarTraduccionAutomatica();
+  }
+
+  get variantesDisponibles(): VarianteRegionalItem[] {
+    const lista = this.variantes().filter(v => v.activo !== false);
+    if (!this.destino) {
+      return lista;
+    }
+    const coincidentes = lista.filter(v =>
+      v.codigo.toLowerCase().startsWith(this.destino.toLowerCase())
+    );
+    return coincidentes.length > 0 ? coincidentes : lista;
   }
 
   private configurarTraduccionAutomatica(): void {
@@ -83,7 +101,7 @@ export class Traduccion {
           texto_a_traducir: textoLimpio,
           idioma_destino: this.destino,
           idioma_origen: this.origen ? this.origen : null,
-          id_contexto: null
+          id_contexto: this.idContextoSeleccionado
         };
 
         return this.traduccionService.traducir(solicitud).pipe(
@@ -117,6 +135,128 @@ export class Traduccion {
     });
   }
 
+  private cargarContextos(): void {
+    this.traduccionService.obtenerContextos().subscribe({
+      next: (respuesta) => {
+        const lista = respuesta.resultado || [];
+        this.contextos.set(lista);
+        if (lista.length > 0) {
+          if (!this.idContextoSeleccionado || !lista.some(c => c.id_contexto === this.idContextoSeleccionado)) {
+            this.idContextoSeleccionado = lista[0].id_contexto;
+          }
+        } else {
+          this.idContextoSeleccionado = null;
+        }
+      },
+      error: () => this.mensaje.set('No se pudieron cargar los contextos disponibles.'),
+    });
+  }
+
+  private cargarTonos(): void {
+    this.traduccionService.obtenerTonos().subscribe({
+      next: (respuesta) => {
+        const lista = respuesta.resultado || [];
+        this.tonos.set(lista);
+        if (lista.length > 0 && !this.idTonoSeleccionado) {
+          this.idTonoSeleccionado = lista[0].id_tono;
+        }
+      },
+      error: () => this.mensaje.set('No se pudieron cargar los tonos disponibles.')
+    });
+  }
+
+  private cargarVariantes(): void {
+    this.traduccionService.obtenerVariantesRegionales().subscribe({
+      next: (respuesta) => {
+        this.variantes.set(respuesta.resultado || []);
+        this.verificarVarianteValida();
+      },
+      error: () => this.mensaje.set('No se pudieron cargar las variantes regionales.')
+    });
+  }
+
+  onDestinoChange(nuevoDestino: string): void {
+    this.destino = nuevoDestino;
+    this.verificarVarianteValida();
+    this.actualizarTexto(true);
+  }
+
+  private verificarVarianteValida(): void {
+    if (this.idVarianteSeleccionada !== null) {
+      const disponibles = this.variantesDisponibles;
+      if (!disponibles.some(v => v.id_variante_regional === this.idVarianteSeleccionada)) {
+        this.idVarianteSeleccionada = null;
+      }
+    }
+  }
+
+  onContextoChange(valor: any): void {
+    if (valor === 'NUEVO') {
+      this.abrirModalNuevoContexto();
+      return;
+    }
+    this.idContextoSeleccionado = valor;
+    this.actualizarTexto(true);
+  }
+
+  abrirModalNuevoContexto(): void {
+    this.nombreNuevoContexto = '';
+    this.descripcionNuevoContexto = '';
+    this.errorModal.set('');
+    this.guardandoContexto.set(false);
+    this.modalNuevoContextoAbierto.set(true);
+  }
+
+  cancelarModalContexto(): void {
+    this.modalNuevoContextoAbierto.set(false);
+    this.seleccionarPrimerContexto();
+  }
+
+  guardarModalContexto(): void {
+    const nombre = this.nombreNuevoContexto.trim();
+    if (!nombre) {
+      this.errorModal.set('El nombre del contexto es obligatorio.');
+      return;
+    }
+
+    this.guardandoContexto.set(true);
+    this.errorModal.set('');
+
+    this.traduccionService.crearContexto({
+      nombre,
+      descripcion: this.descripcionNuevoContexto.trim() || null
+    }).subscribe({
+      next: () => {
+        this.guardandoContexto.set(false);
+        this.modalNuevoContextoAbierto.set(false);
+        this.mensaje.set('Contexto creado correctamente.');
+        this.traduccionService.obtenerContextos().subscribe({
+          next: (resp) => {
+            this.contextos.set(resp.resultado || []);
+            this.seleccionarPrimerContexto();
+          },
+          error: () => {
+            this.seleccionarPrimerContexto();
+          }
+        });
+      },
+      error: (err) => {
+        this.guardandoContexto.set(false);
+        this.errorModal.set(err.error?.detail || err.error?.mensaje || 'No se pudo crear el contexto.');
+      }
+    });
+  }
+
+  private seleccionarPrimerContexto(): void {
+    const lista = this.contextos();
+    if (lista && lista.length > 0) {
+      this.idContextoSeleccionado = lista[0].id_contexto;
+    } else {
+      this.idContextoSeleccionado = null;
+    }
+    this.actualizarTexto(true);
+  }
+
   limpiar(): void {
     this.texto = '';
     this.resultado = '';
@@ -136,17 +276,12 @@ export class Traduccion {
       return;
     }
 
-    const clave = `${this.origen}->${this.destino}:${this.texto}`;
+    const clave = `${this.origen}->${this.destino}:${this.idContextoSeleccionado}:${this.idTonoSeleccionado}:${this.idVarianteSeleccionada}:${this.texto}`;
     if (inmediato) {
       this.immediateTrigger$.next(clave);
     } else {
       this.debouncedTrigger$.next(clave);
     }
-  }
-
-  cargarEjemplo(texto: string): void {
-    this.texto = texto;
-    this.actualizarTexto(true);
   }
 
   intercambiar(): void {
@@ -157,6 +292,7 @@ export class Traduccion {
     const nuevoOrigen = this.destino;
     this.origen = nuevoOrigen;
     this.destino = nuevoDestino;
+    this.verificarVarianteValida();
     this.texto = this.resultado;
     this.resultado = '';
     this.actualizarTexto(true);

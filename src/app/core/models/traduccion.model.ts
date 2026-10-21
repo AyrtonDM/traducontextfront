@@ -1,3 +1,48 @@
+﻿export interface ContextoItem {
+  id_contexto: number;
+  nombre: string;
+  descripcion: string;
+  personalizado?: boolean;
+  activo?: boolean;
+}
+
+export interface ContextosRespuesta {
+  mensaje: string;
+  resultado: ContextoItem[];
+}
+
+export interface CrearContextoSolicitud {
+  nombre: string;
+  descripcion?: string | null;
+}
+
+export interface TonoItem {
+  id?: number;
+  id_tono: number;
+  nombre: string;
+  descripcion?: string;
+  activo?: boolean;
+}
+
+export interface TonosRespuesta {
+  mensaje: string;
+  resultado: TonoItem[];
+}
+
+export interface VarianteRegionalItem {
+  id?: number;
+  id_variante_regional: number;
+  nombre: string;
+  codigo: string;
+  activo?: boolean;
+  id_idioma?: number;
+}
+
+export interface VariantesRegionalesRespuesta {
+  mensaje: string;
+  resultado: VarianteRegionalItem[];
+}
+
 export interface Contexto {
   id: number;
   nombre: string;
@@ -24,11 +69,6 @@ export interface Idioma {
 export interface IdiomasRespuesta {
   mensaje: string;
   resultado: Idioma[];
-}
-
-export interface EjemploTraduccion {
-  nombre: string;
-  texto: string;
 }
 
 export interface Traduccion {
