@@ -1,13 +1,16 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ContextosRespuesta,
+  CrearContextoRespuesta,
   CrearContextoSolicitud,
+  GuardarConfiguracionSolicitud,
   IdiomasRespuesta,
   RealizarTraduccionRespuesta,
   RealizarTraduccionSolicitud,
+  RespuestaConfiguracionTraduccion,
   TonosRespuesta,
   VariantesRegionalesRespuesta
 } from '../models/traduccion.model';
@@ -38,11 +41,19 @@ export class TraduccionService {
     return this.http.get<VariantesRegionalesRespuesta>(`${this.apiUrl}/variantes-regionales`, options);
   }
 
-  crearContexto(datos: CrearContextoSolicitud): Observable<any> {
-    return this.http.post(`${this.apiUrl}/contextos`, datos);
+  crearContexto(datos: CrearContextoSolicitud): Observable<CrearContextoRespuesta> {
+    return this.http.post<CrearContextoRespuesta>(`${this.apiUrl}/contextos`, datos);
   }
 
   traducir(solicitud: RealizarTraduccionSolicitud): Observable<RealizarTraduccionRespuesta> {
     return this.http.post<RealizarTraduccionRespuesta>(`${this.apiUrl}/traducciones`, solicitud);
+  }
+
+  guardarConfiguracion(datos: GuardarConfiguracionSolicitud): Observable<RespuestaConfiguracionTraduccion> {
+    return this.http.post<RespuestaConfiguracionTraduccion>(`${this.apiUrl}/configuracion-traduccion`, datos);
+  }
+
+  obtenerConfiguracion(): Observable<RespuestaConfiguracionTraduccion> {
+    return this.http.get<RespuestaConfiguracionTraduccion>(`${this.apiUrl}/configuracion-traduccion`);
   }
 }

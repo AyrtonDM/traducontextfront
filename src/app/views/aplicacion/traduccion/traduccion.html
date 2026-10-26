@@ -1,4 +1,4 @@
-﻿<main class="traduccion-page">
+<main class="traduccion-page">
   <nav class="breadcrumb" aria-label="Ruta de navegación">
     <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Traducción</span>
   </nav>
@@ -95,7 +95,7 @@
             <label>Tono
               <span class="select-wrap">
                 <i class="fa fa-commenting-o" aria-hidden="true"></i>
-                <select [(ngModel)]="idTonoSeleccionado" (ngModelChange)="actualizarTexto(true)">
+                <select [(ngModel)]="idTonoSeleccionado">
                   @for (t of tonos(); track t.id_tono) {
                     <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
                   }
@@ -105,7 +105,7 @@
             <label>Variante regional <span class="optional">(opcional)</span>
               <span class="select-wrap">
                 <i class="fa fa-map-marker" aria-hidden="true"></i>
-                <select [(ngModel)]="idVarianteSeleccionada" (ngModelChange)="actualizarTexto(true)">
+                <select [(ngModel)]="idVarianteSeleccionada">
                   <option [ngValue]="null">Sin preferencia</option>
                   @for (v of variantesDisponibles; track v.id_variante_regional) {
                     <option [ngValue]="v.id_variante_regional">{{ v.nombre }}</option>
@@ -119,10 +119,9 @@
           <h3>Otras opciones</h3>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="alternativas"><span class="switch" aria-hidden="true"></span>Mostrar alternativas de traducción</label>
           <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="modismos"><span class="switch" aria-hidden="true"></span>Explicar modismos y expresiones</label>
-          <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="formatoLocal"><span class="switch" aria-hidden="true"></span>Adaptar formato local (fechas, monedas, etc.)</label>
-          <button class="translate-button" type="button" [disabled]="!texto.trim() || cargando()" (click)="traducir()">
-            <i class="fa" [class.fa-magic]="!cargando()" [class.fa-spinner]="cargando()" [class.fa-spin]="cargando()" aria-hidden="true"></i>
-            {{ cargando() ? 'Traduciendo...' : 'Aplicar' }}
+          <button class="translate-button" type="button" [disabled]="!hayCambiosEnConfiguracion || guardandoConfiguracion()" (click)="guardarConfiguracion()">
+            <i class="fa" [class.fa-floppy-o]="!guardandoConfiguracion()" [class.fa-spinner]="guardandoConfiguracion()" [class.fa-spin]="guardandoConfiguracion()" aria-hidden="true"></i>
+            {{ guardandoConfiguracion() ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>
       </div>
@@ -154,7 +153,7 @@
           </div>
 
           <div class="modal-field">
-            <label for="descripcion-contexto">Descripción <span class="optional">(opcional)</span></label>
+            <label for="descripcion-contexto">Descripción <span class="required">*</span></label>
             <textarea
               id="descripcion-contexto"
               maxlength="500"
@@ -173,7 +172,7 @@
           <button type="button" class="btn-cancelar" (click)="cancelarModalContexto()" [disabled]="guardandoContexto()">
             Cancelar
           </button>
-          <button type="button" class="btn-guardar" (click)="guardarModalContexto()" [disabled]="!nombreNuevoContexto.trim() || guardandoContexto()">
+          <button type="button" class="btn-guardar" (click)="guardarModalContexto()" [disabled]="!nombreNuevoContexto.trim() || !descripcionNuevoContexto.trim() || guardandoContexto()">
             <i class="fa" [class.fa-check]="!guardandoContexto()" [class.fa-spinner]="guardandoContexto()" [class.fa-spin]="guardandoContexto()" aria-hidden="true"></i>
             {{ guardandoContexto() ? 'Guardando...' : 'Guardar' }}
           </button>
@@ -182,3 +181,4 @@
     </div>
   }
 </main>
+

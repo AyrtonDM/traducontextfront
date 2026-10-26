@@ -1,4 +1,4 @@
-﻿import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -6,6 +6,7 @@ import { merge, of, Subject } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import {
   ContextoItem,
+  GuardarConfiguracionSolicitud,
   Idioma,
   RealizarTraduccionSolicitud,
   TonoItem,
@@ -30,14 +31,23 @@ export class Traduccion {
   idContextoSeleccionado: number | null = null;
   idTonoSeleccionado: number | null = null;
   idVarianteSeleccionada: number | null = null;
-  alternativas = true;
+  alternativas = false;
   modismos = false;
-  formatoLocal = false;
   favorito = false;
   ayuda = false;
   verTodo = false;
   readonly cargando = signal(false);
+  readonly guardandoConfiguracion = signal(false);
   readonly mensaje = signal('');
+
+  // Configuracion obtenida del endpoint o guardada previamente en base de datos
+  configuracionGuardada: {
+    id_contexto: number;
+    id_tono: number;
+    id_variante_regional: number | null;
+    explicar_expresiones: boolean;
+    generar_alternativas: boolean;
+  } | null = null;
   readonly idiomas = signal<Idioma[]>([]);
   readonly contextos = signal<ContextoItem[]>([]);
   readonly tonos = signal<TonoItem[]>([]);
@@ -60,6 +70,7 @@ export class Traduccion {
     this.cargarContextos();
     this.cargarTonos();
     this.cargarVariantes();
+    this.cargarConfiguracionGuardada();
     this.configurarTraduccionAutomatica();
   }
 
@@ -72,6 +83,24 @@ export class Traduccion {
       v.codigo.toLowerCase().startsWith(this.destino.toLowerCase())
     );
     return coincidentes.length > 0 ? coincidentes : lista;
+  }
+
+  get hayCambiosEnConfiguracion(): boolean {
+    if (!this.idContextoSeleccionado || !this.idTonoSeleccionado) {
+      return false;
+    }
+
+    if (!this.configuracionGuardada) {
+      return true;
+    }
+
+    const mismoContexto = this.idContextoSeleccionado === this.configuracionGuardada.id_contexto;
+    const mismoTono = this.idTonoSeleccionado === this.configuracionGuardada.id_tono;
+    const mismaVariante = (this.idVarianteSeleccionada ?? null) === (this.configuracionGuardada.id_variante_regional ?? null);
+    const mismosModismos = this.modismos === this.configuracionGuardada.explicar_expresiones;
+    const mismasAlternativas = this.alternativas === this.configuracionGuardada.generar_alternativas;
+
+    return !(mismoContexto && mismoTono && mismaVariante && mismosModismos && mismasAlternativas);
   }
 
   private configurarTraduccionAutomatica(): void {
@@ -98,17 +127,19 @@ export class Traduccion {
         this.cargando.set(true);
 
         const solicitud: RealizarTraduccionSolicitud = {
-          texto_a_traducir: textoLimpio,
           idioma_destino: this.destino,
-          idioma_origen: this.origen ? this.origen : null,
-          id_contexto: this.idContextoSeleccionado
+          texto_a_traducir: textoLimpio,
+          texto_origen: textoLimpio,
+          texto: textoLimpio,
+          idioma_origen: this.origen ? this.origen : null
         };
 
         return this.traduccionService.traducir(solicitud).pipe(
           catchError((error) => {
             console.error('Error al traducir:', error);
             this.cargando.set(false);
-            this.mensaje.set('Ocurrió un error al traducir el texto.');
+            const detalle = error?.error?.detail || 'Ocurrió un error al traducir el texto.';
+            this.mensaje.set(detalle);
             return of(null);
           })
         );
@@ -157,8 +188,12 @@ export class Traduccion {
       next: (respuesta) => {
         const lista = respuesta.resultado || [];
         this.tonos.set(lista);
-        if (lista.length > 0 && !this.idTonoSeleccionado) {
-          this.idTonoSeleccionado = lista[0].id_tono;
+        if (lista.length > 0) {
+          if (!this.idTonoSeleccionado || !lista.some(t => t.id_tono === this.idTonoSeleccionado)) {
+            this.idTonoSeleccionado = lista[0].id_tono;
+          }
+        } else {
+          this.idTonoSeleccionado = null;
         }
       },
       error: () => this.mensaje.set('No se pudieron cargar los tonos disponibles.')
@@ -196,7 +231,6 @@ export class Traduccion {
       return;
     }
     this.idContextoSeleccionado = valor;
-    this.actualizarTexto(true);
   }
 
   abrirModalNuevoContexto(): void {
@@ -214,8 +248,15 @@ export class Traduccion {
 
   guardarModalContexto(): void {
     const nombre = this.nombreNuevoContexto.trim();
+    const descripcion = this.descripcionNuevoContexto.trim();
+
     if (!nombre) {
       this.errorModal.set('El nombre del contexto es obligatorio.');
+      return;
+    }
+
+    if (!descripcion) {
+      this.errorModal.set('La descripción del contexto es obligatoria.');
       return;
     }
 
@@ -224,12 +265,12 @@ export class Traduccion {
 
     this.traduccionService.crearContexto({
       nombre,
-      descripcion: this.descripcionNuevoContexto.trim() || null
+      descripcion
     }).subscribe({
-      next: () => {
-        this.guardandoContexto.set(false);
-        this.modalNuevoContextoAbierto.set(false);
-        this.mensaje.set('Contexto creado correctamente.');
+      next: (respuesta) => {
+          this.guardandoContexto.set(false);
+          this.modalNuevoContextoAbierto.set(false);
+          this.mensaje.set(respuesta.mensaje || 'Contexto guardado correctamente.');
         this.traduccionService.obtenerContextos().subscribe({
           next: (resp) => {
             this.contextos.set(resp.resultado || []);
@@ -298,6 +339,82 @@ export class Traduccion {
     this.actualizarTexto(true);
   }
 
+  private cargarConfiguracionGuardada(): void {
+    this.traduccionService.obtenerConfiguracion().subscribe({
+      next: (resp) => {
+        if (resp?.resultado) {
+          const res = resp.resultado;
+          this.idContextoSeleccionado = res.id_contexto;
+          this.idTonoSeleccionado = res.id_tono ?? null;
+          this.idVarianteSeleccionada = res.id_variante_regional ?? null;
+          this.modismos = res.explicar_expresiones ?? false;
+          this.alternativas = res.generar_alternativas ?? false;
+
+          // Se almacena la configuración de referencia
+          this.configuracionGuardada = {
+            id_contexto: this.idContextoSeleccionado,
+            id_tono: this.idTonoSeleccionado!,
+            id_variante_regional: this.idVarianteSeleccionada,
+            explicar_expresiones: this.modismos,
+            generar_alternativas: this.alternativas,
+          };
+        }
+      },
+      error: () => {
+        // Si no tiene configuracion registrada o da 404, se mantienen los valores por defecto
+        this.configuracionGuardada = null;
+      }
+    });
+  }
+
+  guardarConfiguracion(): void {
+    if (!this.idContextoSeleccionado) {
+      this.mensaje.set('Por favor, selecciona un contexto.');
+      return;
+    }
+    if (!this.idTonoSeleccionado) {
+      this.mensaje.set('Por favor, selecciona un tono.');
+      return;
+    }
+
+    this.guardandoConfiguracion.set(true);
+    this.mensaje.set('');
+
+    const payload: GuardarConfiguracionSolicitud = {
+      id_contexto: this.idContextoSeleccionado,
+      id_tono: this.idTonoSeleccionado,
+      id_variante_regional: this.idVarianteSeleccionada !== null ? this.idVarianteSeleccionada : null,
+      explicar_expresiones: this.modismos,
+      generar_alternativas: this.alternativas
+    };
+
+    this.traduccionService.guardarConfiguracion(payload).subscribe({
+      next: (respuesta) => {
+        this.guardandoConfiguracion.set(false);
+        this.mensaje.set(respuesta.mensaje || 'Configuracion guardada correctamente.');
+
+        // Actualizamos la configuración guardada con los nuevos valores para deshabilitar el botón
+        this.configuracionGuardada = {
+          id_contexto: this.idContextoSeleccionado!,
+          id_tono: this.idTonoSeleccionado!,
+          id_variante_regional: this.idVarianteSeleccionada !== null ? this.idVarianteSeleccionada : null,
+          explicar_expresiones: this.modismos,
+          generar_alternativas: this.alternativas,
+        };
+
+        if (this.texto.trim()) {
+          this.actualizarTexto(true);
+        }
+      },
+      error: (error) => {
+        this.guardandoConfiguracion.set(false);
+        console.error('Error al guardar configuración:', error);
+        const detalle = error?.error?.detail || 'No se pudo guardar la configuración.';
+        this.mensaje.set(detalle);
+      }
+    });
+  }
+
   traducir(): void {
     this.actualizarTexto(true);
   }
@@ -322,3 +439,7 @@ export class Traduccion {
     window.speechSynthesis.speak(voz);
   }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-﻿export interface ContextoItem {
+export interface ContextoItem {
   id_contexto: number;
   nombre: string;
   descripcion: string;
@@ -13,7 +13,22 @@ export interface ContextosRespuesta {
 
 export interface CrearContextoSolicitud {
   nombre: string;
-  descripcion?: string | null;
+  descripcion: string;
+}
+
+export interface CrearContextoResultado {
+  id?: number;
+  id_contexto: number;
+  nombre: string;
+  descripcion: string;
+  personalizado: boolean;
+  activo: boolean;
+  id_usuario?: number;
+}
+
+export interface CrearContextoRespuesta {
+  mensaje: string;
+  resultado: CrearContextoResultado;
 }
 
 export interface TonoItem {
@@ -95,8 +110,9 @@ export interface TraduccionSolicitud {
 export interface RealizarTraduccionSolicitud {
   idioma_destino: string;
   texto_a_traducir: string;
-  idioma_origen: string | null;
-  id_contexto: number | null;
+  texto_origen?: string;
+  texto?: string;
+  idioma_origen?: string | null;
 }
 
 export interface RealizarTraduccionResultado {
@@ -105,12 +121,47 @@ export interface RealizarTraduccionResultado {
   idioma_destino: string;
   traduccion: string;
   confianza_deteccion: number | null;
-  id_contexto: number | null;
-  nombre_contexto: string | null;
-  analisis_contextual: string | null;
+  id_configuracion_traduccion?: number | null;
+  id_contexto?: number | null;
+  nombre_contexto?: string | null;
+  id_tono?: number | null;
+  nombre_tono?: string | null;
+  id_variante_regional?: number | null;
+  nombre_variante_regional?: string | null;
+  explicar_expresiones?: boolean;
+  generar_alternativas?: boolean;
+  analisis_contextual?: Record<string, unknown> | null;
 }
 
 export interface RealizarTraduccionRespuesta {
   mensaje: string;
   resultado: RealizarTraduccionResultado;
 }
+
+export interface GuardarConfiguracionSolicitud {
+  id_contexto: number;
+  id_tono: number;
+  id_variante_regional?: number | null;
+  explicar_expresiones: boolean;
+  generar_alternativas: boolean;
+}
+
+export interface ConfiguracionTraduccionResultado {
+  id?: number;
+  id_configuracion_traduccion: number;
+  id_contexto: number;
+  id_tono?: number | null;
+  id_variante_regional?: number | null;
+  id_usuario?: number | null;
+  explicar_expresiones: boolean;
+  generar_alternativas: boolean;
+  nombre_contexto?: string | null;
+  nombre_tono?: string | null;
+  nombre_variante_regional?: string | null;
+}
+
+export interface RespuestaConfiguracionTraduccion {
+  mensaje: string;
+  resultado: ConfiguracionTraduccionResultado;
+}
+
