@@ -1,4 +1,4 @@
-﻿:host {
+:host {
   --tinta: color-mix(in srgb, var(--color-primario) 65%, var(--color-texto));
   --borde: color-mix(in srgb, var(--color-primario) 12%, var(--color-fondo));
   --suave: color-mix(in srgb, var(--color-primario) 6%, var(--color-fondo));
@@ -202,3 +202,155 @@ textarea::placeholder { color: var(--color-texto-secundario); opacity: .8; }
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Paneles de Alternativas y Modismos */
+.extra-panel {
+  margin-top: 11px;
+  padding: 14px 16px;
+}
+.extra-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.extra-panel-hint {
+  font-size: 12px;
+  color: var(--color-texto-secundario);
+}
+
+/* Alternativas */
+.alternativas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.alternativa-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  background: var(--color-fondo);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-medio);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--tinta);
+  font-family: inherit;
+}
+.alternativa-card:hover {
+  border-color: var(--color-primario);
+  background: var(--suave);
+  transform: translateY(-1px);
+}
+.alternativa-card.activa {
+  border-color: var(--color-primario);
+  background: color-mix(in srgb, var(--color-primario) 10%, var(--color-fondo));
+}
+.alternativa-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.alternativa-texto {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-texto);
+  line-height: 1.4;
+}
+.alternativa-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--suave);
+  color: var(--color-primario);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.alternativa-card.activa .alternativa-badge {
+  background: var(--color-primario);
+  color: var(--color-texto-claro);
+}
+.alternativa-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-texto-secundario);
+  line-height: 1.4;
+}
+
+/* Modismos y Expresiones */
+.modismos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+.modismo-card {
+  background: var(--color-fondo);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-medio);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.modismo-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.modismo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--color-primario) 12%, var(--color-fondo));
+  color: var(--color-primario);
+  border-radius: var(--radio-pequeno);
+  font-size: 11px;
+  font-weight: 600;
+}
+.modismo-expresion {
+  font-size: 14px;
+  color: var(--color-primario);
+}
+.modismo-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.modismo-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.modismo-etiqueta {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-texto-secundario);
+}
+.modismo-texto {
+  color: var(--color-texto);
+  line-height: 1.4;
+}
+.modismo-equivalente-box {
+  padding: 6px 9px;
+  background: var(--suave);
+  border-radius: var(--radio-pequeno);
+  border-left: 3px solid var(--color-secundario);
+}
+.modismo-equivalente {
+  color: var(--color-texto);
+  font-size: 13px;
+  font-weight: 600;
+}
+

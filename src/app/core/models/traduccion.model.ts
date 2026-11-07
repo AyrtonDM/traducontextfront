@@ -115,6 +115,17 @@ export interface RealizarTraduccionSolicitud {
   idioma_origen?: string | null;
 }
 
+export interface AlternativaTraduccion {
+  traduccion: string;
+  explicacion?: string | null;
+}
+
+export interface ExplicacionExpresion {
+  expresion: string;
+  significado: string;
+  equivalente?: string | null;
+}
+
 export interface RealizarTraduccionResultado {
   texto_origen: string;
   idioma_origen: string;
@@ -130,6 +141,8 @@ export interface RealizarTraduccionResultado {
   nombre_variante_regional?: string | null;
   explicar_expresiones?: boolean;
   generar_alternativas?: boolean;
+  alternativas?: AlternativaTraduccion[];
+  explicacion_expresiones?: ExplicacionExpresion[];
   analisis_contextual?: Record<string, unknown> | null;
 }
 

@@ -5,7 +5,9 @@ import { RouterLink } from '@angular/router';
 import { merge, of, Subject } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import {
+  AlternativaTraduccion,
   ContextoItem,
+  ExplicacionExpresion,
   GuardarConfiguracionSolicitud,
   Idioma,
   RealizarTraduccionSolicitud,
@@ -39,6 +41,8 @@ export class Traduccion {
   readonly cargando = signal(false);
   readonly guardandoConfiguracion = signal(false);
   readonly mensaje = signal('');
+  readonly listaAlternativas = signal<AlternativaTraduccion[]>([]);
+  readonly listaModismos = signal<ExplicacionExpresion[]>([]);
 
   // Configuracion obtenida del endpoint o guardada previamente en base de datos
   configuracionGuardada: {
@@ -115,6 +119,8 @@ export class Traduccion {
         const textoLimpio = this.texto.trim();
         if (!textoLimpio) {
           this.resultado = '';
+          this.listaAlternativas.set([]);
+          this.listaModismos.set([]);
           this.cargando.set(false);
           return of(null);
         }
@@ -138,6 +144,8 @@ export class Traduccion {
           catchError((error) => {
             console.error('Error al traducir:', error);
             this.cargando.set(false);
+            this.listaAlternativas.set([]);
+            this.listaModismos.set([]);
             const detalle = error?.error?.detail || 'Ocurrió un error al traducir el texto.';
             this.mensaje.set(detalle);
             return of(null);
@@ -150,6 +158,11 @@ export class Traduccion {
       if (respuesta?.resultado) {
         this.resultado = respuesta.resultado.traduccion;
         this.idiomaOrigenDetectado = respuesta.resultado.idioma_origen;
+        this.listaAlternativas.set(respuesta.resultado.alternativas ?? []);
+        this.listaModismos.set(respuesta.resultado.explicacion_expresiones ?? []);
+      } else {
+        this.listaAlternativas.set([]);
+        this.listaModismos.set([]);
       }
     });
   }
@@ -301,6 +314,8 @@ export class Traduccion {
   limpiar(): void {
     this.texto = '';
     this.resultado = '';
+    this.listaAlternativas.set([]);
+    this.listaModismos.set([]);
     this.favorito = false;
     this.mensaje.set('');
     this.cargando.set(false);
@@ -313,6 +328,8 @@ export class Traduccion {
     const textoLimpio = this.texto.trim();
     if (!textoLimpio) {
       this.resultado = '';
+      this.listaAlternativas.set([]);
+      this.listaModismos.set([]);
       this.cargando.set(false);
       return;
     }
@@ -336,6 +353,8 @@ export class Traduccion {
     this.verificarVarianteValida();
     this.texto = this.resultado;
     this.resultado = '';
+    this.listaAlternativas.set([]);
+    this.listaModismos.set([]);
     this.actualizarTexto(true);
   }
 
@@ -413,6 +432,10 @@ export class Traduccion {
         this.mensaje.set(detalle);
       }
     });
+  }
+
+  seleccionarAlternativa(alt: AlternativaTraduccion): void {
+    this.resultado = alt.traduccion;
   }
 
   traducir(): void {
