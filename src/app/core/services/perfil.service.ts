@@ -17,4 +17,20 @@ export class PerfilService {
 
   actualizarPerfil(datos: ActualizarPerfilSolicitud): Observable<PerfilRespuesta> {
     return this.http.patch<PerfilRespuesta>(`${this.apiUrl}/perfil`, datos);
-  }}
+  }
+
+  // La foto requiere token, por eso se pide como blob (el interceptor agrega el header)
+  obtenerFoto(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/perfil/foto`, { responseType: 'blob' });
+  }
+
+  subirFoto(archivo: File): Observable<PerfilRespuesta> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+    return this.http.put<PerfilRespuesta>(`${this.apiUrl}/perfil/foto`, formData);
+  }
+
+  eliminarFoto(): Observable<PerfilRespuesta> {
+    return this.http.delete<PerfilRespuesta>(`${this.apiUrl}/perfil/foto`);
+  }
+}

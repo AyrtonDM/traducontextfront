@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -17,6 +17,10 @@ export class Perfil {
   private readonly fb = inject(FormBuilder);
   private readonly perfilService = inject(PerfilService);
   private readonly authService = inject(AutenticacionService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private static readonly TAMANO_MAXIMO_FOTO = 5 * 1024 * 1024;
+  private static readonly TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 
   readonly perfil = signal<PerfilDetalle | null>(null);
   readonly cargando = signal(true);
@@ -25,9 +29,11 @@ export class Perfil {
   readonly mensajeError = signal('');
   private readonly formularioCambiado = signal(0);
 
+  readonly fotoUrl = signal<string | null>(null);
+  readonly subiendoFoto = signal(false);
+
   readonly perfilForm = this.fb.nonNullable.group({
     nombre: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
-    correo: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
   });
 
   readonly iniciales = computed(() => {
@@ -44,21 +50,17 @@ export class Perfil {
     if (!actual) {
       return false;
     }
-    const { nombre, correo } = this.normalizar();
-    return nombre !== actual.nombre || correo !== actual.correo;
+    return this.normalizarNombre() !== actual.nombre;
   });
 
   constructor() {
     this.perfilForm.valueChanges.subscribe(() => this.formularioCambiado.update((v) => v + 1));
+    this.destroyRef.onDestroy(() => this.liberarFoto());
     this.cargarPerfil();
   }
 
   get nombreControl() {
     return this.perfilForm.controls.nombre;
-  }
-
-  get correoControl() {
-    return this.perfilForm.controls.correo;
   }
 
   campoInvalido(campo: { invalid: boolean; touched: boolean; dirty: boolean }): boolean {
@@ -68,7 +70,7 @@ export class Perfil {
   cancelar(): void {
     const actual = this.perfil();
     if (actual) {
-      this.perfilForm.reset({ nombre: actual.nombre, correo: actual.correo });
+      this.perfilForm.reset({ nombre: actual.nombre });
     }
     this.mensajeError.set('');
     this.mensajeExito.set('');
@@ -85,14 +87,7 @@ export class Perfil {
       return;
     }
 
-    const { nombre, correo } = this.normalizar();
-    const datos: { nombre?: string; correo?: string } = {};
-    if (nombre !== actual.nombre) {
-      datos.nombre = nombre;
-    }
-    if (correo !== actual.correo) {
-      datos.correo = correo;
-    }
+    const datos = { nombre: this.normalizarNombre() };
 
     this.guardando.set(true);
     this.mensajeError.set('');
@@ -111,12 +106,98 @@ export class Perfil {
     });
   }
 
+  seleccionarFoto(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    // Permite volver a elegir el mismo archivo despues de un error
+    input.value = '';
+
+    if (!archivo || this.subiendoFoto()) {
+      return;
+    }
+
+    this.mensajeError.set('');
+    this.mensajeExito.set('');
+
+    if (!Perfil.TIPOS_FOTO.includes(archivo.type)) {
+      this.mensajeError.set('Formato de imagen no soportado. Solo se permiten JPG, PNG o WEBP.');
+      return;
+    }
+    if (archivo.size > Perfil.TAMANO_MAXIMO_FOTO) {
+      this.mensajeError.set('La imagen no puede superar los 5 MB.');
+      return;
+    }
+
+    this.subiendoFoto.set(true);
+    this.perfilService.subirFoto(archivo).pipe(
+      finalize(() => this.subiendoFoto.set(false))
+    ).subscribe({
+      next: (respuesta) => {
+        this.perfil.set(respuesta.resultado);
+        this.mostrarFoto(archivo);
+        this.mensajeExito.set(respuesta.mensaje || 'Foto de perfil actualizada correctamente.');
+      },
+      error: (error) => {
+        this.mensajeError.set(this.extraerError(error, 'No se pudo subir la foto de perfil.'));
+      },
+    });
+  }
+
+  quitarFoto(): void {
+    if (this.subiendoFoto() || !this.fotoUrl()) {
+      return;
+    }
+
+    this.mensajeError.set('');
+    this.mensajeExito.set('');
+    this.subiendoFoto.set(true);
+
+    this.perfilService.eliminarFoto().pipe(
+      finalize(() => this.subiendoFoto.set(false))
+    ).subscribe({
+      next: (respuesta) => {
+        this.perfil.set(respuesta.resultado);
+        this.liberarFoto();
+        this.mensajeExito.set(respuesta.mensaje || 'Foto de perfil eliminada correctamente.');
+      },
+      error: (error) => {
+        this.mensajeError.set(this.extraerError(error, 'No se pudo eliminar la foto de perfil.'));
+      },
+    });
+  }
+
+  private cargarFoto(): void {
+    this.perfilService.obtenerFoto().subscribe({
+      next: (blob) => this.mostrarFoto(blob),
+      // Si la foto no se puede cargar se muestran las iniciales
+      error: () => this.liberarFoto(),
+    });
+  }
+
+  private mostrarFoto(imagen: Blob): void {
+    this.liberarFoto();
+    this.fotoUrl.set(URL.createObjectURL(imagen));
+  }
+
+  private liberarFoto(): void {
+    const actual = this.fotoUrl();
+    if (actual) {
+      URL.revokeObjectURL(actual);
+    }
+    this.fotoUrl.set(null);
+  }
+
   private cargarPerfil(): void {
     this.cargando.set(true);
     this.perfilService.obtenerPerfil().pipe(
       finalize(() => this.cargando.set(false))
     ).subscribe({
-      next: (respuesta) => this.aplicarPerfil(respuesta.resultado),
+      next: (respuesta) => {
+        this.aplicarPerfil(respuesta.resultado);
+        if (respuesta.resultado.url_foto_perfil) {
+          this.cargarFoto();
+        }
+      },
       error: (error) => {
         this.mensajeError.set(this.extraerError(error, 'No se pudo cargar la informacion del perfil.'));
       },
@@ -125,7 +206,7 @@ export class Perfil {
 
   private aplicarPerfil(perfil: PerfilDetalle): void {
     this.perfil.set(perfil);
-    this.perfilForm.reset({ nombre: perfil.nombre, correo: perfil.correo });
+    this.perfilForm.reset({ nombre: perfil.nombre });
 
     // Mantiene sincronizado el usuario guardado para los proximos inicios de la app
     const usuarioGuardado = this.authService.obtenerUsuarioActual();
@@ -137,12 +218,8 @@ export class Perfil {
     });
   }
 
-  private normalizar(): { nombre: string; correo: string } {
-    const { nombre, correo } = this.perfilForm.getRawValue();
-    return {
-      nombre: nombre.trim().split(/\s+/).join(' '),
-      correo: correo.trim().toLowerCase(),
-    };
+  private normalizarNombre(): string {
+    return this.perfilForm.getRawValue().nombre.trim().split(/\s+/).join(' ');
   }
 
   // El backend responde los errores como { mensaje, resultado }; en los 422

@@ -16,9 +16,24 @@
   <section class="panel perfil-panel" aria-label="Información del perfil">
     <div class="perfil-resumen">
       <div class="avatar-wrap">
-        <div class="avatar">{{ iniciales() }}</div>
+        <button type="button" class="avatar" (click)="inputFoto.click()" [disabled]="subiendoFoto() || cargando()" [attr.aria-label]="fotoUrl() ? 'Cambiar foto de perfil' : 'Subir foto de perfil'" title="Cambiar foto de perfil">
+          @if (fotoUrl()) {
+            <img [src]="fotoUrl()" alt="Foto de perfil" />
+          } @else {
+            {{ iniciales() }}
+          }
+          @if (subiendoFoto()) {
+            <span class="avatar-cargando"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i></span>
+          }
+        </button>
         <span class="avatar-camara" aria-hidden="true"><i class="fa fa-camera"></i></span>
+        <input #inputFoto type="file" accept="image/jpeg,image/png,image/webp" hidden (change)="seleccionarFoto($event)" />
       </div>
+      @if (fotoUrl() && !cargando()) {
+        <button type="button" class="btn-quitar-foto" (click)="quitarFoto()" [disabled]="subiendoFoto()">
+          <i class="fa fa-trash-o" aria-hidden="true"></i> Quitar foto
+        </button>
+      }
 
       @if (cargando()) {
         <p class="resumen-cargando"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando...</p>
@@ -49,17 +64,13 @@
         </div>
 
         <div class="campo">
-          <label for="perfil-correo">Correo electrónico <span class="requerido">*</span></label>
-          <span class="input-wrap" [class.invalido]="campoInvalido(correoControl)">
+          <label for="perfil-correo">Correo electrónico</label>
+          <span class="input-wrap bloqueado">
             <i class="fa fa-envelope-o" aria-hidden="true"></i>
-            <input id="perfil-correo" type="email" formControlName="correo" maxlength="255" autocomplete="email" placeholder="tu@correo.com" [attr.aria-invalid]="campoInvalido(correoControl)" />
+            <input id="perfil-correo" type="email" [value]="perfil()?.correo ?? ''" disabled aria-describedby="perfil-correo-ayuda" />
+            <i class="fa fa-lock candado" aria-hidden="true"></i>
           </span>
-          @if (campoInvalido(correoControl)) {
-            <small class="campo-error">
-              @if (correoControl.hasError('required')) { El correo es obligatorio. }
-              @else { Ingresa un correo electrónico válido. }
-            </small>
-          }
+          <small id="perfil-correo-ayuda" class="campo-ayuda">El correo no puede modificarse porque se usa para la autenticación de tu cuenta.</small>
         </div>
 
         @if (mensajeError()) {

@@ -23,8 +23,15 @@ h1 { margin: 0; font-size: clamp(21px, 2.2vw, 28px); line-height: 1.3; font-weig
 /* Resumen */
 .perfil-resumen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--espaciado-lg) var(--espaciado-md); border-radius: var(--radio-medio); background: color-mix(in srgb, var(--color-primario) 8%, var(--color-fondo)); text-align: center; min-height: 300px; }
 .avatar-wrap { position: relative; margin-bottom: 10px; }
-.avatar { display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%; background: color-mix(in srgb, var(--color-primario) 45%, var(--color-fondo)); color: var(--color-texto-claro); font-size: 32px; font-weight: 700; }
-.avatar-camara { position: absolute; right: -4px; bottom: 2px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--color-primario) 15%, var(--color-fondo)); background: var(--color-fondo); color: var(--color-primario); font-size: 14px; }
+.avatar { position: relative; display: grid; place-items: center; width: 96px; height: 96px; padding: 0; overflow: hidden; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--color-primario) 45%, var(--color-fondo)); color: var(--color-texto-claro); font: inherit; font-size: 32px; font-weight: 700; cursor: pointer; transition: box-shadow var(--transicion); }
+.avatar:not(:disabled):hover, .avatar:focus-visible { outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primario) 25%, transparent); }
+.avatar:disabled { cursor: wait; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-cargando { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(0 0 0 / .4); color: #fff; font-size: 24px; }
+.btn-quitar-foto { display: inline-flex; align-items: center; gap: 6px; margin: -4px 0 6px; padding: 2px 8px; border: 0; background: none; color: var(--color-texto-secundario); font: inherit; font-size: 13px; cursor: pointer; }
+.btn-quitar-foto:not(:disabled):hover { color: var(--color-error); }
+.btn-quitar-foto:disabled { opacity: .55; cursor: not-allowed; }
+.avatar-camara { pointer-events: none; position: absolute; right: -4px; bottom: 2px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--color-primario) 15%, var(--color-fondo)); background: var(--color-fondo); color: var(--color-primario); font-size: 14px; }
 .resumen-nombre { margin: 0; font-size: 21px; font-weight: 700; color: var(--color-primario); overflow-wrap: anywhere; }
 .resumen-correo { margin: 0; font-size: 15px; color: var(--color-texto-secundario); overflow-wrap: anywhere; }
 .resumen-cargando { margin: 0; color: var(--color-texto-secundario); font-style: italic; }
@@ -43,6 +50,10 @@ h1 { margin: 0; font-size: clamp(21px, 2.2vw, 28px); line-height: 1.3; font-weig
 .input-wrap input { width: 100%; height: 46px; padding: 0 16px 0 48px; border: 1px solid color-mix(in srgb, var(--color-primario) 20%, var(--color-fondo)); border-radius: var(--radio-medio); background: var(--color-fondo); color: var(--color-texto); font: inherit; font-size: 15px; transition: border-color var(--transicion), box-shadow var(--transicion); }
 .input-wrap input:focus { outline: none; border-color: var(--color-primario); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primario) 15%, transparent); }
 .input-wrap.invalido input { border-color: var(--color-error); }
+.input-wrap.bloqueado input { padding-right: 44px; border-color: #d4d4d4; background: #ececec; color: #6b6b6b; -webkit-text-fill-color: #6b6b6b; opacity: 1; cursor: not-allowed; }
+.input-wrap.bloqueado > i { color: #9a9a9a; }
+.input-wrap.bloqueado > .candado { left: auto; right: 16px; }
+.campo-ayuda { color: var(--color-texto-secundario); font-size: 12px; }
 .campo-error { color: var(--color-error); font-size: 12px; }
 
 .estado-mensaje { display: flex; align-items: center; gap: 8px; margin: var(--espaciado-md) 0 0; padding: 10px 12px; border-radius: var(--radio-medio); font-size: 13px; }
