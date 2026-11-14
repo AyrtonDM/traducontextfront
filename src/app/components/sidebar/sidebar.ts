@@ -15,21 +15,16 @@ export class Sidebar implements OnInit {
     private readonly router = inject(Router);
     private readonly authService = inject(AutenticacionService);
 
-    usuarioActual: UsuarioAutenticado | null = null;
+    get usuarioActual(): UsuarioAutenticado | null {
+        return this.authService.usuarioActual();
+    }
 
     ngOnInit(): void {
-        const usuarioGuardado = this.authService.obtenerUsuarioActual();
-
-        if (usuarioGuardado && usuarioGuardado.nombre) {
-            this.usuarioActual = usuarioGuardado;
+        if (this.authService.usuarioActual()?.nombre) {
             return;
         }
 
-        this.authService.cargarYGuardarPerfil().subscribe((usuario) => {
-            if (usuario) {
-                this.usuarioActual = usuario;
-            }
-        });
+        this.authService.cargarYGuardarPerfil().subscribe();
     }
 
     tienePermiso(permiso: string): boolean {
@@ -50,7 +45,7 @@ export class Sidebar implements OnInit {
 
     private finalizarSesion(): void {
         localStorage.removeItem('auth_token');
-        localStorage.removeItem('usuario_actual');
+        this.authService.guardarUsuarioActual(null);
         this.router.navigate(['/login']);
     }
 }

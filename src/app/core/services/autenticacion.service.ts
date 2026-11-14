@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -19,6 +19,9 @@ export class AutenticacionService {
 
   private http = inject(HttpClient);
   private apiUrl = environment.apiUrl;
+
+  // Usuario actual reactivo: header y sidebar se actualizan al editar el perfil
+  readonly usuarioActual = signal<UsuarioAutenticado | null>(this.obtenerUsuarioActual());
 
   registrarUsuario(
     datos: RegistroUsuario
@@ -108,6 +111,8 @@ export class AutenticacionService {
   }
 
   guardarUsuarioActual(usuario: UsuarioAutenticado | null): void {
+    this.usuarioActual.set(usuario);
+
     if (!usuario) {
       localStorage.removeItem('usuario_actual');
       return;

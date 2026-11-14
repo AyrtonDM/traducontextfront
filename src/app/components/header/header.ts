@@ -14,18 +14,19 @@ export class Header implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AutenticacionService);
 
-  usuarioActual: UsuarioAutenticado = {
+  private readonly usuarioVacio: UsuarioAutenticado = {
     nombre: '',
     correo: '',
     rol: '',
     permisos: [],
   };
 
-  ngOnInit(): void {
-    const usuarioGuardado = this.authService.obtenerUsuarioActual();
+  get usuarioActual(): UsuarioAutenticado {
+    return this.authService.usuarioActual() ?? this.usuarioVacio;
+  }
 
-    if (usuarioGuardado && usuarioGuardado.nombre) {
-      this.usuarioActual = usuarioGuardado;
+  ngOnInit(): void {
+    if (this.authService.usuarioActual()?.nombre) {
       return;
     }
 
@@ -59,11 +60,6 @@ export class Header implements OnInit {
 
   private cargarUsuarioActual(): void {
     this.authService.cargarYGuardarPerfil().subscribe({
-      next: (usuario) => {
-        if (usuario) {
-          this.usuarioActual = usuario;
-        }
-      },
       error: (error) => {
         console.error('Error al obtener el perfil del usuario:', error);
       }
@@ -72,7 +68,7 @@ export class Header implements OnInit {
 
   private finalizarSesion(): void {
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('usuario_actual');
+    this.authService.guardarUsuarioActual(null);
     this.router.navigate(['/login']);
   }
 }
