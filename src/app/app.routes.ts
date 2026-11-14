@@ -6,6 +6,7 @@ import { RecuperacionContrasena } from './views/autenticacion/recuperacion_contr
 
 import { Inicio } from './views/aplicacion/inicio/inicio';
 import { Traduccion } from './views/aplicacion/traduccion/traduccion';
+import { Documentos } from './views/aplicacion/documentos/documentos';
 
 import { Autenticado } from './layouts/autenticado/autenticado';
 
@@ -50,10 +51,14 @@ export const routes: Routes = [
     component: Autenticado,
     canActivate: [autenticacionGuard],
     children: [
-      {
-        path: 'traduccion',
-        component: Traduccion
-      },
+      {
+        path: 'traduccion',
+        component: Traduccion
+      },
+      {
+        path: 'documentos',
+        component: Documentos
+      },
 
       {
         path: 'inicio',
