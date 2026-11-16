@@ -15,6 +15,8 @@ import {
   Traduccion as TraduccionModelo,
   VarianteRegionalItem
 } from '../../../core/models/traduccion.model';
+import { GlosarioResumen, TerminoAplicado } from '../../../core/models/glosario.model';
+import { GlosarioService } from '../../../core/services/glosario.service';
 import { TraduccionService } from '../../../core/services/traduccion.service';
 
 @Component({
@@ -25,6 +27,7 @@ import { TraduccionService } from '../../../core/services/traduccion.service';
 })
 export class Traduccion {
   private readonly traduccionService = inject(TraduccionService);
+  private readonly glosarioService = inject(GlosarioService);
   texto = '';
   resultado = '';
   origen = '';
@@ -33,6 +36,8 @@ export class Traduccion {
   idContextoSeleccionado: number | null = null;
   idTonoSeleccionado: number | null = null;
   idVarianteSeleccionada: number | null = null;
+  // Un solo glosario por traduccion; solo se ofrecen los del par de idiomas actual
+  idGlosarioSeleccionado: number | null = null;
   alternativas = false;
   modismos = false;
   favorito = false;
@@ -56,6 +61,8 @@ export class Traduccion {
   readonly contextos = signal<ContextoItem[]>([]);
   readonly tonos = signal<TonoItem[]>([]);
   readonly variantes = signal<VarianteRegionalItem[]>([]);
+  readonly glosarios = signal<GlosarioResumen[]>([]);
+  readonly terminosAplicados = signal<TerminoAplicado[]>([]);
 
   // Modal nuevo contexto
   readonly modalNuevoContextoAbierto = signal(false);
@@ -74,6 +81,7 @@ export class Traduccion {
     this.cargarContextos();
     this.cargarTonos();
     this.cargarVariantes();
+    this.cargarGlosarios();
     this.cargarConfiguracionGuardada();
     this.configurarTraduccionAutomatica();
   }
@@ -87,6 +95,20 @@ export class Traduccion {
       v.codigo.toLowerCase().startsWith(this.destino.toLowerCase())
     );
     return coincidentes.length > 0 ? coincidentes : lista;
+  }
+
+  /** Idioma de origen efectivo: el elegido o, si es automatico, el detectado */
+  get origenEfectivo(): string {
+    return (this.origen || this.idiomaOrigenDetectado || '').toLowerCase();
+  }
+
+  get glosariosDisponibles(): GlosarioResumen[] {
+    const destino = this.destino.toLowerCase();
+    const origen = this.origenEfectivo;
+    return this.glosarios().filter(g =>
+      (g.codigo_idioma_destino ?? '').toLowerCase() === destino &&
+      (!origen || (g.codigo_idioma_origen ?? '').toLowerCase() === origen)
+    );
   }
 
   get hayCambiosEnConfiguracion(): boolean {
@@ -137,7 +159,8 @@ export class Traduccion {
           texto_a_traducir: textoLimpio,
           texto_origen: textoLimpio,
           texto: textoLimpio,
-          idioma_origen: this.origen ? this.origen : null
+          idioma_origen: this.origen ? this.origen : null,
+          id_glosario: this.idGlosarioSeleccionado
         };
 
         return this.traduccionService.traducir(solicitud).pipe(
@@ -146,7 +169,8 @@ export class Traduccion {
             this.cargando.set(false);
             this.listaAlternativas.set([]);
             this.listaModismos.set([]);
-            const detalle = error?.error?.detail || 'Ocurrió un error al traducir el texto.';
+            this.terminosAplicados.set([]);
+            const detalle = error?.error?.mensaje || error?.error?.detail || 'Ocurrió un error al traducir el texto.';
             this.mensaje.set(detalle);
             return of(null);
           })
@@ -160,9 +184,11 @@ export class Traduccion {
         this.idiomaOrigenDetectado = respuesta.resultado.idioma_origen;
         this.listaAlternativas.set(respuesta.resultado.alternativas ?? []);
         this.listaModismos.set(respuesta.resultado.explicacion_expresiones ?? []);
+        this.terminosAplicados.set(respuesta.resultado.terminos_glosario_aplicados ?? []);
       } else {
         this.listaAlternativas.set([]);
         this.listaModismos.set([]);
+        this.terminosAplicados.set([]);
       }
     });
   }
@@ -223,10 +249,43 @@ export class Traduccion {
     });
   }
 
+  private cargarGlosarios(): void {
+    this.glosarioService.listar().subscribe({
+      next: (respuesta) => {
+        this.glosarios.set(respuesta.resultado || []);
+        this.verificarGlosarioValido();
+      },
+      error: () => this.glosarios.set([])
+    });
+  }
+
   onDestinoChange(nuevoDestino: string): void {
     this.destino = nuevoDestino;
     this.verificarVarianteValida();
+    this.verificarGlosarioValido();
     this.actualizarTexto(true);
+  }
+
+  onOrigenChange(nuevoOrigen: string): void {
+    this.origen = nuevoOrigen;
+    this.verificarGlosarioValido();
+    this.actualizarTexto(true);
+  }
+
+  onGlosarioChange(idGlosario: number | null): void {
+    this.idGlosarioSeleccionado = idGlosario;
+    this.actualizarTexto(true);
+  }
+
+  /** Quita el glosario seleccionado si ya no corresponde al par de idiomas actual */
+  private verificarGlosarioValido(): void {
+    if (
+      this.idGlosarioSeleccionado !== null &&
+      !this.glosariosDisponibles.some(g => g.id_glosario === this.idGlosarioSeleccionado)
+    ) {
+      this.idGlosarioSeleccionado = null;
+      this.terminosAplicados.set([]);
+    }
   }
 
   private verificarVarianteValida(): void {
@@ -316,6 +375,7 @@ export class Traduccion {
     this.resultado = '';
     this.listaAlternativas.set([]);
     this.listaModismos.set([]);
+    this.terminosAplicados.set([]);
     this.favorito = false;
     this.mensaje.set('');
     this.cargando.set(false);
@@ -334,7 +394,7 @@ export class Traduccion {
       return;
     }
 
-    const clave = `${this.origen}->${this.destino}:${this.idContextoSeleccionado}:${this.idTonoSeleccionado}:${this.idVarianteSeleccionada}:${this.texto}`;
+    const clave = `${this.origen}->${this.destino}:${this.idContextoSeleccionado}:${this.idTonoSeleccionado}:${this.idVarianteSeleccionada}:${this.idGlosarioSeleccionado}:${this.texto}`;
     if (inmediato) {
       this.immediateTrigger$.next(clave);
     } else {
@@ -351,6 +411,7 @@ export class Traduccion {
     this.origen = nuevoOrigen;
     this.destino = nuevoDestino;
     this.verificarVarianteValida();
+    this.verificarGlosarioValido();
     this.texto = this.resultado;
     this.resultado = '';
     this.listaAlternativas.set([]);

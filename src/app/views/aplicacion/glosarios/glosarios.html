@@ -1,0 +1,279 @@
+<main class="glosarios-page" (click)="menuAbiertoId.set(null)">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Glosarios</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-book" aria-hidden="true"></i>
+      <div>
+        <h1>Glosarios personalizados</h1>
+        <p>Crea y administra glosarios con términos y reglas de traducción para mantener la consistencia en tus traducciones.</p>
+      </div>
+    </div>
+    <button type="button" class="btn-ayuda" (click)="ayudaVisible.set(!ayudaVisible())" [attr.aria-expanded]="ayudaVisible()">
+      <i class="fa fa-question-circle" aria-hidden="true"></i> ¿Cómo funciona?
+    </button>
+  </header>
+
+  @if (ayudaVisible()) {
+    <aside class="info-panel">
+      <i class="fa fa-info-circle" aria-hidden="true"></i>
+      <span>Cada glosario se aplica a un par de idiomas (por ejemplo <strong>EN → ES</strong>) y puedes elegirlo al traducir. Cada término define cómo tratar una palabra: <strong>Traducir</strong> usa siempre tu traducción preferida y <strong>Conservar</strong> mantiene el término original sin traducirlo.</span>
+    </aside>
+  }
+
+  @if (mensajeError()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ mensajeError() }}</p>
+  }
+  @if (mensajeExito()) {
+    <p class="estado-mensaje exito pagina-mensaje" role="status"><i class="fa fa-check-circle" aria-hidden="true"></i> {{ mensajeExito() }}</p>
+  }
+
+  <div class="glosarios-layout">
+    <!-- LISTA DE GLOSARIOS -->
+    <section class="panel lista-panel" aria-label="Mis glosarios">
+      <div class="lista-header">
+        <h2 class="section-title"><i class="fa fa-folder-open-o" aria-hidden="true"></i> Mis glosarios</h2>
+        <button type="button" class="btn-primario" (click)="abrirCrearGlosario()" [disabled]="guardando()">
+          <i class="fa fa-plus" aria-hidden="true"></i> Nuevo glosario
+        </button>
+      </div>
+
+      <label class="buscador">
+        <i class="fa fa-search" aria-hidden="true"></i>
+        <input type="search" placeholder="Buscar glosario..." aria-label="Buscar glosario" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)" />
+      </label>
+
+      <ul class="glosario-lista" [attr.aria-busy]="cargandoLista()">
+        @if (cargandoLista()) {
+          <li class="vacio"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando glosarios...</li>
+        } @else {
+          @for (glosario of glosariosFiltrados(); track glosario.id_glosario) {
+            <li class="glosario-item" [class.activo]="glosario.id_glosario === idSeleccionado()">
+              <button type="button" class="glosario-boton" (click)="seleccionar(glosario.id_glosario)">
+                <i class="fa fa-book" aria-hidden="true"></i>
+                <span class="glosario-texto">
+                  <strong>{{ glosario.nombre }}</strong>
+                  <small>
+                    <span class="par-idiomas" [title]="(glosario.nombre_idioma_origen ?? '') + ' → ' + (glosario.nombre_idioma_destino ?? '')">{{ glosario.par_idiomas }}</span>
+                    · {{ glosario.cantidad_terminos }} {{ glosario.cantidad_terminos === 1 ? 'término' : 'términos' }}
+                  </small>
+                </span>
+              </button>
+              <button type="button" class="btn-menu" aria-label="Opciones del glosario" (click)="toggleMenu(glosario.id_glosario, $event)">
+                <i class="fa fa-ellipsis-h" aria-hidden="true"></i>
+              </button>
+              @if (menuAbiertoId() === glosario.id_glosario) {
+                <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                  <button type="button" role="menuitem" (click)="abrirEditarGlosario(glosario.id_glosario)"><i class="fa fa-pencil" aria-hidden="true"></i> Editar</button>
+                  <button type="button" role="menuitem" [disabled]="guardando()" (click)="duplicarGlosario(glosario.id_glosario)"><i class="fa fa-files-o" aria-hidden="true"></i> Duplicar</button>
+                  <button type="button" role="menuitem" class="peligro" [disabled]="guardando()" (click)="eliminarGlosario(glosario.id_glosario)"><i class="fa fa-trash-o" aria-hidden="true"></i> Eliminar</button>
+                </div>
+              }
+            </li>
+          } @empty {
+            <li class="vacio">
+              {{ busqueda() ? 'No se encontraron glosarios.' : 'Aún no tienes glosarios. Crea el primero.' }}
+            </li>
+          }
+        }
+      </ul>
+    </section>
+
+    <!-- DETALLE DEL GLOSARIO -->
+    <section class="panel detalle-panel" aria-label="Detalle del glosario">
+      @if (glosarioActual(); as glosario) {
+        <div class="detalle-header">
+          <div class="detalle-titulo">
+            <i class="fa fa-book" aria-hidden="true"></i>
+            <div>
+              <h2>
+                {{ glosario.nombre }}
+                <button type="button" class="btn-icono" aria-label="Editar glosario" (click)="abrirEditarGlosario(glosario.id_glosario)">
+                  <i class="fa fa-pencil" aria-hidden="true"></i>
+                </button>
+              </h2>
+              <p>
+                <span class="par-idiomas" [title]="(glosario.nombre_idioma_origen ?? '') + ' → ' + (glosario.nombre_idioma_destino ?? '')">{{ glosario.par_idiomas }}</span>
+                · {{ glosario.cantidad_terminos }} {{ glosario.cantidad_terminos === 1 ? 'término' : 'términos' }}
+              </p>
+              @if (glosario.descripcion) {
+                <p class="detalle-descripcion">{{ glosario.descripcion }}</p>
+              }
+            </div>
+          </div>
+          <div class="detalle-acciones">
+            <button type="button" class="btn-secundario" [disabled]="guardando()" (click)="eliminarGlosario(glosario.id_glosario)"><i class="fa fa-trash-o" aria-hidden="true"></i> Eliminar</button>
+            <button type="button" class="btn-secundario" [disabled]="guardando()" (click)="duplicarGlosario(glosario.id_glosario)"><i class="fa fa-files-o" aria-hidden="true"></i> Duplicar</button>
+            <button type="button" class="btn-primario" [disabled]="guardando()" (click)="abrirCrearTermino()"><i class="fa fa-plus" aria-hidden="true"></i> Agregar término</button>
+          </div>
+        </div>
+
+        <div class="tabla-wrap">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th><button type="button" class="th-orden" (click)="ordenarPor('origen')">Término ({{ glosario.codigo_idioma_origen?.toUpperCase() }}) <i class="fa {{ iconoOrden('origen') }}" aria-hidden="true"></i></button></th>
+                <th><button type="button" class="th-orden" (click)="ordenarPor('traduccion')">Traducción preferida ({{ glosario.codigo_idioma_destino?.toUpperCase() }}) <i class="fa {{ iconoOrden('traduccion') }}" aria-hidden="true"></i></button></th>
+                <th>Regla <i class="fa fa-info-circle" aria-hidden="true" title="Traducir: usa la traducción preferida. Conservar: mantiene el término original."></i></th>
+                <th class="col-acciones">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (termino of terminosPagina(); track termino.id_termino_glosario) {
+                <tr>
+                  <td class="col-origen">
+                    {{ termino.termino_origen }}
+                    @if (termino.distinguir_mayusculas) {
+                      <i class="fa fa-font distingue" aria-label="Distingue mayúsculas" title="Distingue mayúsculas y minúsculas"></i>
+                    }
+                    @if (termino.nota) {
+                      <small class="nota">{{ termino.nota }}</small>
+                    }
+                  </td>
+                  <td [class.conservado]="termino.conservar_original">{{ textoTraduccion(termino) }}</td>
+                  <td>
+                    @if (!termino.conservar_original) {
+                      <span class="regla traducir"><i class="fa fa-exchange" aria-hidden="true"></i> Traducir</span>
+                    } @else {
+                      <span class="regla conservar"><i class="fa fa-lock" aria-hidden="true"></i> Conservar</span>
+                    }
+                  </td>
+                  <td class="col-acciones">
+                    <button type="button" class="btn-icono" aria-label="Editar término" [disabled]="guardando()" (click)="abrirEditarTermino(termino)"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+                    <button type="button" class="btn-icono" aria-label="Eliminar término" [disabled]="guardando()" (click)="eliminarTermino(termino)"><i class="fa fa-trash-o" aria-hidden="true"></i></button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="vacio">Este glosario aún no tiene términos.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="detalle-footer">
+          <span>Mostrando {{ terminosPagina().length }} de {{ glosario.terminos.length }} términos</span>
+          <nav class="paginacion" aria-label="Paginación">
+            <button type="button" aria-label="Página anterior" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)"><i class="fa fa-arrow-left" aria-hidden="true"></i></button>
+            @for (p of paginas(); track p) {
+              <button type="button" [class.activo]="p === pagina()" [attr.aria-current]="p === pagina() ? 'page' : null" (click)="irAPagina(p)">{{ p }}</button>
+            }
+            <button type="button" aria-label="Página siguiente" [disabled]="pagina() === totalPaginas()" (click)="irAPagina(pagina() + 1)"><i class="fa fa-arrow-right" aria-hidden="true"></i></button>
+          </nav>
+        </footer>
+      } @else if (cargandoDetalle()) {
+        <div class="sin-seleccion">
+          <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+          <p>Cargando glosario...</p>
+        </div>
+      } @else {
+        <div class="sin-seleccion">
+          <i class="fa fa-book" aria-hidden="true"></i>
+          <p>Selecciona o crea un glosario para ver sus términos.</p>
+        </div>
+      }
+    </section>
+  </div>
+
+  <!-- MODAL GLOSARIO -->
+  @if (modalGlosario()) {
+    <div class="modal-fondo" (click)="cerrarModales()">
+      <form class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-glosario-titulo" (click)="$event.stopPropagation()" (ngSubmit)="guardarGlosario()">
+        <h3 id="modal-glosario-titulo">{{ modalGlosario() === 'crear' ? 'Nuevo glosario' : 'Editar glosario' }}</h3>
+        <label class="campo">
+          <span>Nombre <span class="requerido">*</span></span>
+          <input type="text" name="nombreGlosario" maxlength="100" [(ngModel)]="glosarioForm.nombre" placeholder="Ej. Términos Técnicos" />
+        </label>
+        <div class="idiomas-grid">
+          <label class="campo">
+            <span>Idioma de origen <span class="requerido">*</span></span>
+            <select name="idiomaOrigen" [(ngModel)]="glosarioForm.idIdiomaOrigen">
+              <option [ngValue]="null" disabled>Seleccione...</option>
+              @for (idioma of idiomas(); track idioma.id) {
+                <option [ngValue]="idioma.id" [disabled]="idioma.id === glosarioForm.idIdiomaDestino">{{ idioma.nombre }}</option>
+              }
+            </select>
+          </label>
+          <i class="fa fa-long-arrow-right idiomas-flecha" aria-hidden="true"></i>
+          <label class="campo">
+            <span>Idioma de destino <span class="requerido">*</span></span>
+            <select name="idiomaDestino" [(ngModel)]="glosarioForm.idIdiomaDestino">
+              <option [ngValue]="null" disabled>Seleccione...</option>
+              @for (idioma of idiomas(); track idioma.id) {
+                <option [ngValue]="idioma.id" [disabled]="idioma.id === glosarioForm.idIdiomaOrigen">{{ idioma.nombre }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        @if (modalGlosario() === 'editar') {
+          <p class="campo-ayuda">Si cambias los idiomas, revisa que las traducciones preferidas sigan correspondiendo al nuevo par.</p>
+        }
+        <label class="campo">
+          <span>Descripción <span class="opcional">(opcional)</span></span>
+          <textarea name="descripcion" rows="2" [(ngModel)]="glosarioForm.descripcion" placeholder="Ej. Vocabulario del área de sistemas"></textarea>
+        </label>
+        @if (errorModal()) {
+          <p class="estado-mensaje error" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorModal() }}</p>
+        }
+        <div class="modal-acciones">
+          <button type="button" class="btn-secundario" [disabled]="guardando()" (click)="cerrarModales()">Cancelar</button>
+          <button type="submit" class="btn-primario" [disabled]="guardando()">
+            @if (guardando()) { <i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Guardando... } @else { Guardar }
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- MODAL TÉRMINO -->
+  @if (modalTermino()) {
+    <div class="modal-fondo" (click)="cerrarModales()">
+      <form class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-termino-titulo" (click)="$event.stopPropagation()" (ngSubmit)="guardarTermino()">
+        <h3 id="modal-termino-titulo">{{ modalTermino() === 'crear' ? 'Agregar término' : 'Editar término' }}</h3>
+        <label class="campo">
+          <span>Término ({{ glosarioActual()?.nombre_idioma_origen ?? 'origen' }}) <span class="requerido">*</span></span>
+          <input type="text" name="origen" maxlength="255" [(ngModel)]="terminoForm.origen" placeholder="Ej. Backend" />
+        </label>
+        <fieldset class="campo">
+          <legend>Regla</legend>
+          <div class="reglas-opciones">
+            <label class="regla-opcion" [class.activa]="terminoForm.regla === 'traducir'">
+              <input type="radio" name="regla" value="traducir" [(ngModel)]="terminoForm.regla" />
+              <i class="fa fa-exchange" aria-hidden="true"></i> Traducir
+            </label>
+            <label class="regla-opcion" [class.activa]="terminoForm.regla === 'conservar'">
+              <input type="radio" name="regla" value="conservar" [(ngModel)]="terminoForm.regla" />
+              <i class="fa fa-lock" aria-hidden="true"></i> Conservar
+            </label>
+          </div>
+        </fieldset>
+        @if (terminoForm.regla === 'traducir') {
+          <label class="campo">
+            <span>Traducción preferida ({{ glosarioActual()?.nombre_idioma_destino ?? 'destino' }}) <span class="requerido">*</span></span>
+            <input type="text" name="traduccion" maxlength="255" [(ngModel)]="terminoForm.traduccion" placeholder="Ej. Lógica del servidor" />
+          </label>
+        } @else {
+          <p class="campo-ayuda">El término se mantendrá igual en todas las traducciones.</p>
+        }
+        <label class="check-opcion">
+          <input type="checkbox" name="distinguirMayusculas" [(ngModel)]="terminoForm.distinguirMayusculas" />
+          Distinguir mayúsculas y minúsculas
+        </label>
+        <label class="campo">
+          <span>Nota <span class="opcional">(opcional)</span></span>
+          <input type="text" name="nota" [(ngModel)]="terminoForm.nota" placeholder="Ej. Usar solo en documentación técnica" />
+        </label>
+        @if (errorModal()) {
+          <p class="estado-mensaje error" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorModal() }}</p>
+        }
+        <div class="modal-acciones">
+          <button type="button" class="btn-secundario" [disabled]="guardando()" (click)="cerrarModales()">Cancelar</button>
+          <button type="submit" class="btn-primario" [disabled]="guardando()">
+            @if (guardando()) { <i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Guardando... } @else { Guardar }
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</main>

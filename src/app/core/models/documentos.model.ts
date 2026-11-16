@@ -16,6 +16,7 @@ export interface DocumentoCargado {
   seleccionado?: boolean;
   idioma_origen_seleccionado?: string;
   idioma_destino_seleccionado?: string;
+  id_glosario_seleccionado?: number | null;
   traduciendo?: boolean;
   eliminando?: boolean;
 }
@@ -34,6 +35,7 @@ export interface TraducirDocumentoSolicitud {
   id_documento: number;
   idioma_destino: string;
   idioma_origen?: string | null;
+  id_glosario?: number | null;
 }
 
 export interface DocumentoTraducido {
@@ -53,6 +55,8 @@ export interface DocumentoTraducido {
   nombre_idioma_destino: string;
   nombre_documento_original: string;
   url_descarga: string;
+  id_glosario?: number | null;
+  nombre_glosario?: string | null;
 
   // Propiedades de interacción en UI
   seleccionado?: boolean;

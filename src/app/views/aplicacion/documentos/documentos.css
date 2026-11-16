@@ -405,6 +405,8 @@
 }
 
 /* Dropdown dentro de la tabla */
+.select-glosario { margin-top: 6px; }
+
 .table-select-wrap select {
   height: 32px;
   border: 1px solid var(--doc-border);
