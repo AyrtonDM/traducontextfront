@@ -1,0 +1,329 @@
+<main class="historial-page">
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a>
+    <i class="fa fa-angle-right" aria-hidden="true"></i>
+    <span aria-current="page">Historial</span>
+  </nav>
+
+  <!-- ENCABEZADO DE PÁGINA -->
+  <header class="page-header">
+    <div class="page-title">
+      <div class="header-icon-box" aria-hidden="true">
+        <i class="fa fa-history"></i>
+      </div>
+      <div>
+        <h1>Historial de traducciones</h1>
+        <p>Busca, filtra, marca como favoritas o elimina tus traducciones anteriores.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ALERTAS -->
+  @if (error()) {
+    <div class="alert-banner alert-error" role="alert">
+      <span class="alert-text">
+        <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+        {{ error() }}
+      </span>
+      <button type="button" class="alert-close" aria-label="Cerrar alerta" (click)="error.set(null)">
+        <i class="fa fa-times" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+  @if (mensajeExito()) {
+    <div class="alert-banner alert-exito" role="status">
+      <span class="alert-text">
+        <i class="fa fa-check-circle" aria-hidden="true"></i>
+        {{ mensajeExito() }}
+      </span>
+      <button type="button" class="alert-close" aria-label="Cerrar alerta" (click)="mensajeExito.set(null)">
+        <i class="fa fa-times" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+
+  <!-- FILTROS -->
+  <section class="panel filtros-card" aria-label="Filtros del historial">
+    <div class="filtros-grid">
+      <div class="filtro-campo filtro-busqueda">
+        <label for="filtro-busqueda">Buscar</label>
+        <div class="input-icono">
+          <i class="fa fa-search" aria-hidden="true"></i>
+          <input
+            id="filtro-busqueda"
+            type="search"
+            maxlength="200"
+            placeholder="Texto original o traducido..."
+            [ngModel]="filtros().busqueda"
+            (ngModelChange)="actualizarFiltro('busqueda', $event)"
+          />
+        </div>
+      </div>
+
+      <div class="filtro-campo">
+        <label for="filtro-origen">Idioma origen</label>
+        <select
+          id="filtro-origen"
+          [ngModel]="filtros().idiomaOrigen"
+          (ngModelChange)="actualizarFiltro('idiomaOrigen', $event)"
+        >
+          <option value="">Todos</option>
+          @for (idioma of idiomas(); track idioma.codigo) {
+            <option [value]="idioma.codigo">{{ idioma.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filtro-campo">
+        <label for="filtro-destino">Idioma destino</label>
+        <select
+          id="filtro-destino"
+          [ngModel]="filtros().idiomaDestino"
+          (ngModelChange)="actualizarFiltro('idiomaDestino', $event)"
+        >
+          <option value="">Todos</option>
+          @for (idioma of idiomas(); track idioma.codigo) {
+            <option [value]="idioma.codigo">{{ idioma.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filtro-campo">
+        <label for="filtro-desde">Desde</label>
+        <input
+          id="filtro-desde"
+          type="date"
+          [max]="filtros().fechaHasta || null"
+          [ngModel]="filtros().fechaDesde"
+          (ngModelChange)="actualizarFiltro('fechaDesde', $event ?? '')"
+        />
+      </div>
+
+      <div class="filtro-campo">
+        <label for="filtro-hasta">Hasta</label>
+        <input
+          id="filtro-hasta"
+          type="date"
+          [min]="filtros().fechaDesde || null"
+          [ngModel]="filtros().fechaHasta"
+          (ngModelChange)="actualizarFiltro('fechaHasta', $event ?? '')"
+        />
+      </div>
+    </div>
+
+    <div class="filtros-acciones">
+      <label class="check-favoritos">
+        <input
+          type="checkbox"
+          [ngModel]="filtros().soloFavoritos"
+          (ngModelChange)="actualizarFiltro('soloFavoritos', $event)"
+        />
+        <i class="fa fa-star" aria-hidden="true"></i>
+        Solo favoritos
+      </label>
+
+      <span class="contador">
+        {{ totalResultados() }} {{ totalResultados() === 1 ? 'resultado' : 'resultados' }}
+      </span>
+
+      <button
+        type="button"
+        class="btn-limpiar"
+        (click)="limpiarFiltros()"
+        [disabled]="!hayFiltrosActivos()"
+      >
+        <i class="fa fa-eraser" aria-hidden="true"></i>
+        Limpiar filtros
+      </button>
+    </div>
+  </section>
+
+  <!-- LISTADO -->
+  <section class="panel table-card" aria-label="Traducciones">
+    <div class="table-container">
+      <table class="docs-table">
+        <thead>
+          <tr>
+            <th class="th-favorito"><span class="sr-only">Favorito</span></th>
+            <th>Texto original</th>
+            <th>Traducción</th>
+            <th>Idiomas</th>
+            <th>Fecha</th>
+            <th class="th-acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (cargando()) {
+            <tr>
+              <td colspan="6" class="td-empty">
+                <i class="fa fa-spinner fa-spin empty-icon" aria-hidden="true"></i>
+                Cargando historial...
+              </td>
+            </tr>
+          } @else {
+            @for (item of traducciones(); track item.id_traduccion) {
+              <tr
+                class="fila-historial"
+                [class.row-selected]="seleccionado()?.id_traduccion === item.id_traduccion"
+                (click)="verDetalle(item)"
+              >
+                <td class="td-favorito">
+                  <button
+                    type="button"
+                    class="btn-favorito"
+                    [class.activo]="item.favorito"
+                    [attr.aria-pressed]="item.favorito"
+                    [attr.aria-label]="item.favorito ? 'Quitar de favoritos' : 'Marcar como favorito'"
+                    [title]="item.favorito ? 'Quitar de favoritos' : 'Marcar como favorito'"
+                    [disabled]="actualizandoFavorito() === item.id_traduccion"
+                    (click)="alternarFavorito(item, $event)"
+                  >
+                    <i
+                      class="fa"
+                      [class.fa-star]="item.favorito"
+                      [class.fa-star-o]="!item.favorito"
+                      aria-hidden="true"
+                    ></i>
+                  </button>
+                </td>
+                <td class="td-texto">{{ truncar(item.texto_original, 60) }}</td>
+                <td class="td-texto">{{ truncar(item.texto_traducido, 60) }}</td>
+                <td class="td-idiomas">
+                  {{ etiquetaIdioma(item.idioma_origen) }}
+                  <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+                  {{ etiquetaIdioma(item.idioma_destino) }}
+                </td>
+                <td class="td-fecha">{{ formatearFecha(item.fecha_creacion) }}</td>
+                <td class="td-acciones">
+                  <button
+                    type="button"
+                    class="btn-action-delete"
+                    aria-label="Eliminar del historial"
+                    title="Eliminar del historial"
+                    (click)="solicitarEliminar(item, $event)"
+                  >
+                    <i class="fa fa-trash" aria-hidden="true"></i>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="td-empty">
+                  @if (hayFiltrosActivos()) {
+                    <i class="fa fa-search empty-icon" aria-hidden="true"></i>
+                    No se encontraron traducciones con los filtros aplicados.
+                    <button type="button" class="btn-link" (click)="limpiarFiltros()">Limpiar filtros</button>
+                  } @else {
+                    <i class="fa fa-history empty-icon" aria-hidden="true"></i>
+                    Aún no tienes traducciones en tu historial.
+                    <a class="btn-link" routerLink="/traduccion">Ir a traducir</a>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- DETALLE -->
+  @if (seleccionado(); as detalle) {
+    <section class="panel detalle-card" aria-label="Detalle de la traducción">
+      <div class="table-header">
+        <h2 class="section-title">
+          <i class="fa fa-file-text-o" aria-hidden="true"></i>
+          Detalle
+        </h2>
+        <button type="button" class="modal-close" aria-label="Cerrar detalle" (click)="cerrarDetalle()">
+          <i class="fa fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="detalle-body">
+        <div class="detalle-bloque">
+          <div class="detalle-titulo">
+            <span>Original ({{ etiquetaIdioma(detalle.idioma_origen) }})</span>
+            <button type="button" class="btn-copiar" (click)="copiarTexto(detalle.texto_original)">
+              <i class="fa fa-copy" aria-hidden="true"></i> Copiar
+            </button>
+          </div>
+          <p>{{ detalle.texto_original }}</p>
+        </div>
+        <div class="detalle-bloque">
+          <div class="detalle-titulo">
+            <span>Traducción ({{ etiquetaIdioma(detalle.idioma_destino) }})</span>
+            <button type="button" class="btn-copiar" (click)="copiarTexto(detalle.texto_traducido)">
+              <i class="fa fa-copy" aria-hidden="true"></i> Copiar
+            </button>
+          </div>
+          <p>{{ detalle.texto_traducido }}</p>
+        </div>
+        <p class="detalle-meta">{{ formatearFecha(detalle.fecha_creacion) }}</p>
+      </div>
+    </section>
+  }
+
+  <!-- MODAL CONFIRMAR ELIMINACIÓN -->
+  @if (confirmarEliminar(); as aEliminar) {
+    <div class="modal-overlay" (click)="cancelarEliminar()">
+      <div
+        class="modal-card"
+        (click)="$event.stopPropagation()"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="modal-eliminar-titulo"
+        aria-describedby="modal-eliminar-texto"
+      >
+        <div class="modal-header">
+          <h3 id="modal-eliminar-titulo">
+            <i class="fa fa-trash" aria-hidden="true"></i>
+            Eliminar traducción
+          </h3>
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Cerrar modal"
+            (click)="cancelarEliminar()"
+            [disabled]="eliminando()"
+          >
+            <i class="fa fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p id="modal-eliminar-texto" class="modal-texto">
+            ¿Seguro que deseas eliminar esta traducción de tu historial? Esta acción no se puede deshacer.
+          </p>
+          <blockquote class="modal-cita">{{ truncar(aEliminar.texto_original, 120) }}</blockquote>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-modal-cancelar"
+            (click)="cancelarEliminar()"
+            [disabled]="eliminando()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-modal-eliminar"
+            (click)="eliminarConfirmado()"
+            [disabled]="eliminando()"
+          >
+            <i
+              class="fa"
+              [class.fa-trash]="!eliminando()"
+              [class.fa-spinner]="eliminando()"
+              [class.fa-spin]="eliminando()"
+              aria-hidden="true"
+            ></i>
+            {{ eliminando() ? 'Eliminando...' : 'Eliminar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

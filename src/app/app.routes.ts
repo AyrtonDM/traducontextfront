@@ -7,6 +7,7 @@ import { RecuperacionContrasena } from './views/autenticacion/recuperacion_contr
 import { Inicio } from './views/aplicacion/inicio/inicio';
 import { Traduccion } from './views/aplicacion/traduccion/traduccion';
 import { Documentos } from './views/aplicacion/documentos/documentos';
+import { Historial } from './views/aplicacion/historial/historial';
 
 import { Autenticado } from './layouts/autenticado/autenticado';
 
@@ -58,6 +59,10 @@ export const routes: Routes = [
       {
         path: 'documentos',
         component: Documentos
+      },
+      {
+        path: 'historial',
+        component: Historial
       },
 
       {

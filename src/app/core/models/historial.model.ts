@@ -12,6 +12,7 @@ export interface TraduccionHistorial {
   explicar_expresiones: boolean;
   generar_alternativas: boolean;
   analisis_contextual: Record<string, unknown> | null;
+  favorito: boolean;
 }
 
 export interface HistorialRespuesta {
@@ -19,12 +20,26 @@ export interface HistorialRespuesta {
   resultado: TraduccionHistorial[];
 }
 
-// Estado de UI para los filtros
+// Estado de UI para los filtros (se envían al backend como query params)
 export interface FiltrosHistorial {
   busqueda: string;
   idiomaOrigen: string;   // '' = todos
   idiomaDestino: string;  // '' = todos
-  contexto: string;       // '' = todos
-  periodo: 'hoy' | 'semana' | 'mes' | 'todos';
+  fechaDesde: string;     // 'YYYY-MM-DD' o ''
+  fechaHasta: string;     // 'YYYY-MM-DD' o '' (inclusiva)
+  soloFavoritos: boolean;
 }
 
+// Respuesta del backend: PATCH /traducciones/{id}/favorito
+export interface FavoritoRespuesta {
+  mensaje: string;
+  resultado: {
+    id_traduccion: number;
+    favorito: boolean;
+  };
+}
+
+// Respuesta del backend: DELETE /traducciones/{id}
+export interface EliminarTraduccionRespuesta {
+  mensaje: string;
+}

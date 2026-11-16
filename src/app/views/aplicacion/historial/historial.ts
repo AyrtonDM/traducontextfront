@@ -1,8 +1,19 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { HistorialService } from '../../../core/services/historial.service';
+import { TraduccionService } from '../../../core/services/traduccion.service';
 import { FiltrosHistorial, TraduccionHistorial } from '../../../core/models/historial.model';
+import { Idioma } from '../../../core/models/traduccion.model';
+
+const FILTROS_INICIALES: FiltrosHistorial = {
+  busqueda: '',
+  idiomaOrigen: '',
+  idiomaDestino: '',
+  fechaDesde: '',
+  fechaHasta: '',
+  soloFavoritos: false,
+};
 
 @Component({
   selector: 'app-historial',
@@ -11,104 +22,81 @@ import { FiltrosHistorial, TraduccionHistorial } from '../../../core/models/hist
   templateUrl: './historial.html',
   styleUrl: './historial.css',
 })
-export class Historial implements OnInit {
+export class Historial implements OnInit, OnDestroy {
 
   private readonly historialService = inject(HistorialService);
+  private readonly traduccionService = inject(TraduccionService);
+  private temporizadorBusqueda: ReturnType<typeof setTimeout> | null = null;
 
   // ── Estado de carga ──────────────────────────────────────────────────────
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+  readonly mensajeExito = signal<string | null>(null);
 
-  // ── Datos originales del backend ─────────────────────────────────────────
+  // ── Datos del backend (ya filtrados) ─────────────────────────────────────
   readonly traducciones = signal<TraduccionHistorial[]>([]);
+  readonly idiomas = signal<Idioma[]>([]);
 
   // ── Item seleccionado para el panel de detalle ───────────────────────────
   readonly seleccionado = signal<TraduccionHistorial | null>(null);
 
+  // ── Acciones en curso ────────────────────────────────────────────────────
+  readonly actualizandoFavorito = signal<number | null>(null);
+  readonly confirmarEliminar = signal<TraduccionHistorial | null>(null);
+  readonly eliminando = signal(false);
+
   // ── Filtros ───────────────────────────────────────────────────────────────
-  readonly filtros = signal<FiltrosHistorial>({
-    busqueda: '',
-    idiomaOrigen: '',
-    idiomaDestino: '',
-    contexto: '',
-    periodo: 'todos',
-  });
+  readonly filtros = signal<FiltrosHistorial>({ ...FILTROS_INICIALES });
 
-  // ── Computed: opciones únicas para los selects de filtro ─────────────────
-  readonly idiomasOrigen = computed(() =>
-    [...new Set(this.traducciones().map(t => t.idioma_origen))].sort()
-  );
-
-  readonly idiomasDestino = computed(() =>
-    [...new Set(this.traducciones().map(t => t.idioma_destino))].sort()
-  );
-
-  readonly contextos = computed(() =>
-    [...new Set(
-      this.traducciones()
-        .map(t => t.nombre_contexto)
-        .filter((c): c is string => c !== null)
-    )].sort()
-  );
-
-  // ── Computed: lista filtrada ──────────────────────────────────────────────
-  readonly traduccionesFiltradas = computed(() => {
+  readonly totalResultados = computed(() => this.traducciones().length);
+  readonly rangoFechasInvalido = computed(() => {
     const f = this.filtros();
-    const ahora = new Date();
-    return this.traducciones().filter(t => {
-      // Búsqueda de texto libre
-      if (f.busqueda.trim()) {
-        const q = f.busqueda.toLowerCase();
-        const coincide =
-          t.texto_original.toLowerCase().includes(q) ||
-          t.texto_traducido.toLowerCase().includes(q);
-        if (!coincide) return false;
-      }
-      // Idioma origen
-      if (f.idiomaOrigen && t.idioma_origen !== f.idiomaOrigen) return false;
-      // Idioma destino
-      if (f.idiomaDestino && t.idioma_destino !== f.idiomaDestino) return false;
-      // Contexto
-      if (f.contexto && t.nombre_contexto !== f.contexto) return false;
-      // Período
-      if (f.periodo !== 'todos') {
-        const fecha = new Date(t.fecha_creacion);
-        const diff = ahora.getTime() - fecha.getTime();
-        const msHoy = ahora.setHours(0, 0, 0, 0) - new Date(fecha).setHours(0, 0, 0, 0);
-        if (f.periodo === 'hoy' && msHoy !== 0) return false;
-        if (f.periodo === 'semana' && diff > 7 * 86_400_000) return false;
-        if (f.periodo === 'mes' && diff > 30 * 86_400_000) return false;
-      }
-      return true;
-    });
+    return !!f.fechaDesde && !!f.fechaHasta && f.fechaDesde > f.fechaHasta;
   });
-
-  readonly totalFiltradas = computed(() => this.traduccionesFiltradas().length);
   readonly hayFiltrosActivos = computed(() => {
     const f = this.filtros();
     return f.busqueda.trim() !== '' ||
       f.idiomaOrigen !== '' ||
       f.idiomaDestino !== '' ||
-      f.contexto !== '' ||
-      f.periodo !== 'todos';
+      f.fechaDesde !== '' ||
+      f.fechaHasta !== '' ||
+      f.soloFavoritos;
   });
 
   // ─────────────────────────────────────────────────────────────────────────
   ngOnInit(): void {
+    this.cargarIdiomas();
     this.cargarHistorial();
   }
 
+  ngOnDestroy(): void {
+    if (this.temporizadorBusqueda) clearTimeout(this.temporizadorBusqueda);
+  }
+
+  cargarIdiomas(): void {
+    this.traduccionService.obtenerIdiomas().subscribe({
+      next: (respuesta) => this.idiomas.set(respuesta.resultado ?? []),
+      error: () => this.idiomas.set([]),
+    });
+  }
+
   cargarHistorial(): void {
+    if (this.rangoFechasInvalido()) {
+      this.error.set('La fecha "desde" no puede ser mayor que la fecha "hasta".');
+      this.traducciones.set([]);
+      this.cargando.set(false);
+      return;
+    }
     this.cargando.set(true);
     this.error.set(null);
-    this.historialService.obtenerHistorial().subscribe({
+    this.historialService.obtenerHistorial(this.filtros()).subscribe({
       next: (respuesta) => {
         this.traducciones.set(respuesta.resultado ?? []);
         this.cargando.set(false);
       },
       error: (err) => {
-        const msg = err?.error?.mensaje ?? 'No se pudo cargar el historial.';
-        this.error.set(msg);
+        const msg = err?.error?.detail ?? err?.error?.mensaje;
+        this.error.set(typeof msg === 'string' ? msg : 'No se pudo cargar el historial.');
         this.cargando.set(false);
       },
     });
@@ -122,11 +110,21 @@ export class Historial implements OnInit {
     this.filtros.update(f => ({ ...f, [campo]: valor }));
     // Cierra el detalle al refiltrar para evitar confusiones
     this.seleccionado.set(null);
+
+    if (this.temporizadorBusqueda) clearTimeout(this.temporizadorBusqueda);
+    if (campo === 'busqueda') {
+      // Espera a que el usuario termine de escribir antes de consultar
+      this.temporizadorBusqueda = setTimeout(() => this.cargarHistorial(), 350);
+    } else {
+      this.cargarHistorial();
+    }
   }
 
   limpiarFiltros(): void {
-    this.filtros.set({ busqueda: '', idiomaOrigen: '', idiomaDestino: '', contexto: '', periodo: 'todos' });
+    if (this.temporizadorBusqueda) clearTimeout(this.temporizadorBusqueda);
+    this.filtros.set({ ...FILTROS_INICIALES });
     this.seleccionado.set(null);
+    this.cargarHistorial();
   }
 
   // ── Detalle ───────────────────────────────────────────────────────────────
@@ -138,6 +136,71 @@ export class Historial implements OnInit {
 
   cerrarDetalle(): void {
     this.seleccionado.set(null);
+  }
+
+  // ── Favoritos ─────────────────────────────────────────────────────────────
+  alternarFavorito(item: TraduccionHistorial, evento?: Event): void {
+    evento?.stopPropagation();
+    if (this.actualizandoFavorito() !== null) return;
+
+    this.actualizandoFavorito.set(item.id_traduccion);
+    this.historialService.marcarFavorito(item.id_traduccion, !item.favorito).subscribe({
+      next: (respuesta) => {
+        const favorito = respuesta.resultado.favorito;
+        if (this.filtros().soloFavoritos && !favorito) {
+          // Con el filtro de favoritos activo, el registro deja de cumplirlo
+          this.quitarDeLista(item.id_traduccion);
+        } else {
+          this.traducciones.update(lista =>
+            lista.map(t => t.id_traduccion === item.id_traduccion ? { ...t, favorito } : t)
+          );
+          this.seleccionado.update(s =>
+            s?.id_traduccion === item.id_traduccion ? { ...s, favorito } : s
+          );
+        }
+        this.actualizandoFavorito.set(null);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.detail ?? 'No se pudo actualizar el favorito.');
+        this.actualizandoFavorito.set(null);
+      },
+    });
+  }
+
+  // ── Eliminación ───────────────────────────────────────────────────────────
+  solicitarEliminar(item: TraduccionHistorial, evento?: Event): void {
+    evento?.stopPropagation();
+    this.confirmarEliminar.set(item);
+  }
+
+  cancelarEliminar(): void {
+    if (this.eliminando()) return;
+    this.confirmarEliminar.set(null);
+  }
+
+  eliminarConfirmado(): void {
+    const item = this.confirmarEliminar();
+    if (!item || this.eliminando()) return;
+
+    this.eliminando.set(true);
+    this.historialService.eliminarTraduccion(item.id_traduccion).subscribe({
+      next: (respuesta) => {
+        this.quitarDeLista(item.id_traduccion);
+        this.mensajeExito.set(respuesta.mensaje ?? 'Traducción eliminada del historial.');
+        this.eliminando.set(false);
+        this.confirmarEliminar.set(null);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.detail ?? 'No se pudo eliminar la traducción.');
+        this.eliminando.set(false);
+        this.confirmarEliminar.set(null);
+      },
+    });
+  }
+
+  private quitarDeLista(idTraduccion: number): void {
+    this.traducciones.update(lista => lista.filter(t => t.id_traduccion !== idTraduccion));
+    this.seleccionado.update(s => (s?.id_traduccion === idTraduccion ? null : s));
   }
 
   // ── Acciones ──────────────────────────────────────────────────────────────
@@ -158,6 +221,8 @@ export class Historial implements OnInit {
   }
 
   etiquetaIdioma(codigo: string): string {
+    const idioma = this.idiomas().find(i => i.codigo === codigo);
+    if (idioma) return idioma.nombre;
     const nombres: Record<string, string> = {
       es: 'Español', en: 'Inglés', fr: 'Francés', pt: 'Portugués',
       de: 'Alemán', it: 'Italiano', zh: 'Chino', ja: 'Japonés',
@@ -170,4 +235,3 @@ export class Historial implements OnInit {
     return texto.length > max ? texto.slice(0, max) + '…' : texto;
   }
 }
-
