@@ -1,3 +1,5 @@
+import { TerminoAplicado } from './glosario.model';
+
 export interface ContextoItem {
   id_contexto: number;
   nombre: string;
@@ -113,6 +115,7 @@ export interface RealizarTraduccionSolicitud {
   texto_origen?: string;
   texto?: string;
   idioma_origen?: string | null;
+  id_glosario?: number | null;
 }
 
 export interface AlternativaTraduccion {
@@ -144,6 +147,9 @@ export interface RealizarTraduccionResultado {
   alternativas?: AlternativaTraduccion[];
   explicacion_expresiones?: ExplicacionExpresion[];
   analisis_contextual?: Record<string, unknown> | null;
+  id_glosario?: number | null;
+  nombre_glosario?: string | null;
+  terminos_glosario_aplicados?: TerminoAplicado[];
 }
 
 export interface RealizarTraduccionRespuesta {

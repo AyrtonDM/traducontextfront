@@ -13,7 +13,8 @@ import { Autenticado } from './layouts/autenticado/autenticado';
 import { autenticacionGuard } from './core/guards/autenticacion.guard';
 import { Usuarios } from './views/administracion/usuarios/usuarios';
 import { permisoGuard } from './core/guards/permiso.guard';
-import { Perfil } from './views/cuenta/perfil/perfil';
+import { Perfil } from './views/aplicacion/perfil/perfil';
+import { Glosarios } from './views/aplicacion/glosarios/glosarios';
 
 export const routes: Routes = [
   // ==========================
@@ -64,6 +65,11 @@ export const routes: Routes = [
         path: 'inicio',
         component: Inicio
       },
+
+      {
+        path: 'glosarios',
+        component: Glosarios
+      },
 
       {
         path: 'perfil',

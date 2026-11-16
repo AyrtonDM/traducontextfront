@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DocumentosService } from '../../../core/services/documentos.service';
 import { TraduccionService } from '../../../core/services/traduccion.service';
+import { GlosarioService } from '../../../core/services/glosario.service';
+import { GlosarioResumen } from '../../../core/models/glosario.model';
 import {
   DocumentoCargado,
   DocumentoTraducido,
@@ -26,11 +28,13 @@ import {
 export class Documentos implements OnInit {
   private readonly documentosService = inject(DocumentosService);
   private readonly traduccionService = inject(TraduccionService);
+  private readonly glosarioService = inject(GlosarioService);
 
   // Listas de datos
   readonly documentosCargados = signal<DocumentoCargado[]>([]);
   readonly documentosTraducidos = signal<DocumentoTraducido[]>([]);
   readonly idiomas = signal<Idioma[]>([]);
+  readonly glosarios = signal<GlosarioResumen[]>([]);
   readonly contextos = signal<ContextoItem[]>([]);
   readonly tonos = signal<TonoItem[]>([]);
   readonly variantes = signal<VarianteRegionalItem[]>([]);
@@ -66,6 +70,7 @@ export class Documentos implements OnInit {
     this.cargarDocumentosCargados();
     this.cargarDocumentosTraducidos();
     this.cargarIdiomas();
+    this.cargarGlosarios();
     this.cargarContextos();
     this.cargarTonos();
     this.cargarVariantes();
@@ -127,6 +132,7 @@ export class Documentos implements OnInit {
           seleccionado: false,
           idioma_origen_seleccionado: doc.codigo_idioma_origen || 'es',
           idioma_destino_seleccionado: 'en',
+          id_glosario_seleccionado: null,
           traduciendo: false,
         }));
         this.documentosCargados.set(lista);
@@ -155,6 +161,33 @@ export class Documentos implements OnInit {
         console.error('Error al cargar documentos traducidos:', err);
       }
     });
+  }
+
+  private cargarGlosarios(): void {
+    this.glosarioService.listar().subscribe({
+      next: (resp) => this.glosarios.set(resp.resultado || []),
+      error: (err) => console.error('Error al cargar glosarios:', err)
+    });
+  }
+
+  /** Glosarios aplicables al par de idiomas elegido para el documento */
+  glosariosPara(doc: DocumentoCargado): GlosarioResumen[] {
+    const origen = (doc.idioma_origen_seleccionado || '').toLowerCase();
+    const destino = (doc.idioma_destino_seleccionado || '').toLowerCase();
+    return this.glosarios().filter(g =>
+      (g.codigo_idioma_origen ?? '').toLowerCase() === origen &&
+      (g.codigo_idioma_destino ?? '').toLowerCase() === destino
+    );
+  }
+
+  /** Quita el glosario del documento si ya no corresponde a los idiomas elegidos */
+  validarGlosarioDocumento(doc: DocumentoCargado): void {
+    if (
+      doc.id_glosario_seleccionado != null &&
+      !this.glosariosPara(doc).some(g => g.id_glosario === doc.id_glosario_seleccionado)
+    ) {
+      doc.id_glosario_seleccionado = null;
+    }
   }
 
   private cargarIdiomas(): void {
@@ -337,6 +370,7 @@ export class Documentos implements OnInit {
       id_documento: doc.id_documento,
       idioma_destino: idiomaDestino,
       idioma_origen: idiomaOrigen,
+      id_glosario: doc.id_glosario_seleccionado ?? null,
     };
 
     this.documentosService.traducirDocumento(solicitud).subscribe({

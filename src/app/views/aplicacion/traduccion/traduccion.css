@@ -46,6 +46,8 @@ textarea::placeholder { color: var(--color-texto-secundario); opacity: .8; }
 .select-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .select-grid label, .options h3 { font-size: 14px; font-weight: 600; }
 .select-wrap { margin-top: 4px; }
+.glosario-ayuda { display: block; margin-top: 4px; color: var(--color-texto-secundario); font-size: 12px; font-weight: 400; }
+.glosario-ayuda a { color: var(--color-primario); font-weight: 600; }
 .options h3 { margin: 0 0 5px; }
 .toggle { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; cursor: pointer; }
 .toggle input { position: absolute; opacity: 0; width: 34px; height: 19px; }

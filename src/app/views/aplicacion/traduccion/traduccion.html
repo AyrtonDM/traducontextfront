@@ -23,7 +23,7 @@
         <div class="language-field">
           <span class="source-count">{{ texto.length }}/5000</span>
           <i class="fa fa-globe" aria-hidden="true"></i>
-          <select aria-label="Idioma de origen" [(ngModel)]="origen" (ngModelChange)="actualizarTexto(true)">
+          <select aria-label="Idioma de origen" [ngModel]="origen" (ngModelChange)="onOrigenChange($event)">
             <option value="">Seleccione...</option>
             @for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
           </select>
@@ -176,6 +176,22 @@
                   }
                 </select>
               </span>
+            </label>
+            <label>Glosario <span class="optional">(opcional)</span>
+              <span class="select-wrap">
+                <i class="fa fa-book" aria-hidden="true"></i>
+                <select [ngModel]="idGlosarioSeleccionado" (ngModelChange)="onGlosarioChange($event)">
+                  <option [ngValue]="null">Sin glosario</option>
+                  @for (g of glosariosDisponibles; track g.id_glosario) {
+                    <option [ngValue]="g.id_glosario">{{ g.nombre }} ({{ g.par_idiomas }})</option>
+                  }
+                </select>
+              </span>
+              @if (glosariosDisponibles.length === 0) {
+                <small class="glosario-ayuda">No tienes glosarios para este par de idiomas. <a routerLink="/glosarios">Crear glosario</a></small>
+              } @else if (terminosAplicados().length) {
+                <small class="glosario-ayuda"><i class="fa fa-check" aria-hidden="true"></i> Términos aplicados: {{ terminosAplicados().length }}</small>
+              }
             </label>
           </div>
         </div>

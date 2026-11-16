@@ -199,6 +199,7 @@
                       <div class="table-select-wrap">
                         <select
                           [(ngModel)]="doc.idioma_origen_seleccionado"
+                          (ngModelChange)="validarGlosarioDocumento(doc)"
                           aria-label="Idioma de origen para este documento"
                         >
                           @for (idm of idiomas(); track idm.codigo) {
@@ -211,6 +212,7 @@
                       <div class="table-select-wrap">
                         <select
                           [(ngModel)]="doc.idioma_destino_seleccionado"
+                          (ngModelChange)="validarGlosarioDocumento(doc)"
                           aria-label="Idioma de destino para este documento"
                         >
                           @for (idm of idiomas(); track idm.codigo) {
@@ -218,6 +220,20 @@
                           }
                         </select>
                       </div>
+                      @if (glosariosPara(doc).length > 0) {
+                        <div class="table-select-wrap select-glosario">
+                          <select
+                            [(ngModel)]="doc.id_glosario_seleccionado"
+                            aria-label="Glosario a aplicar en este documento"
+                            title="Glosario a aplicar"
+                          >
+                            <option [ngValue]="null">Sin glosario</option>
+                            @for (g of glosariosPara(doc); track g.id_glosario) {
+                              <option [ngValue]="g.id_glosario">{{ g.nombre }}</option>
+                            }
+                          </select>
+                        </div>
+                      }
                     </td>
                     <td>
                       <span class="badge-estado badge-listo">
