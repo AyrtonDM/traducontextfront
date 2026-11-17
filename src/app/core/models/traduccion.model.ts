@@ -142,7 +142,12 @@ export interface RealizarTraduccionResultado {
   nombre_tono?: string | null;
   id_variante_regional?: number | null;
   nombre_variante_regional?: string | null;
+  /** HU-17: true si la traduccion principal fue adaptada a la variante regional */
+  region_aplicada?: boolean;
+  estado_region?: EstadoRegion;
   explicar_expresiones?: boolean;
+  /** HU-16: true solo si las explicaciones estaban activadas y se procesaron correctamente */
+  explicaciones_procesadas?: boolean;
   generar_alternativas?: boolean;
   alternativas?: AlternativaTraduccion[];
   explicacion_expresiones?: ExplicacionExpresion[];
@@ -151,6 +156,9 @@ export interface RealizarTraduccionResultado {
   nombre_glosario?: string | null;
   terminos_glosario_aplicados?: TerminoAplicado[];
 }
+
+/** Estado de la localizacion cultural en una traduccion (HU-17) */
+export type EstadoRegion = 'sin_region' | 'aplicada' | 'incompatible' | 'error_adaptacion';
 
 export interface RealizarTraduccionRespuesta {
   mensaje: string;
@@ -163,6 +171,8 @@ export interface GuardarConfiguracionSolicitud {
   id_variante_regional?: number | null;
   explicar_expresiones: boolean;
   generar_alternativas: boolean;
+  /** Solo para validar que la variante corresponda al idioma de destino actual (no se guarda) */
+  idioma_destino?: string | null;
 }
 
 export interface ConfiguracionTraduccionResultado {

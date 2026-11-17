@@ -205,6 +205,52 @@ textarea::placeholder { color: var(--color-texto-secundario); opacity: .8; }
   cursor: not-allowed;
 }
 
+/* Avisos de localizacion cultural (HU-17) */
+.aviso-traduccion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.aviso-incompatible {
+  background: #FFFBEB;
+  color: #92400E;
+}
+.aviso-error {
+  background: #FEF2F2;
+  color: #991B1B;
+}
+.aviso-region {
+  color: #92400E;
+}
+
+/* Reproduccion por voz (HU-28) */
+.voz-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+}
+.voz-auto input {
+  margin: 0;
+}
+.aviso-voz {
+  background: #FFFBEB;
+  color: #92400E;
+}
+
+/* Mensaje sin expresiones (HU-16) */
+.modismos-vacio {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-texto-secundario);
+}
+
 /* Paneles de Alternativas y Modismos */
 .extra-panel {
   margin-top: 11px;

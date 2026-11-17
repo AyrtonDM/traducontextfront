@@ -329,10 +329,11 @@ export class Documentos implements OnInit {
 
   private validarYSubir(file: File): void {
     const nombre = file.name.toLowerCase();
-    const esValido = nombre.endsWith('.pdf') || nombre.endsWith('.doc') || nombre.endsWith('.docx');
+    // Deben coincidir con EXTENSIONES_PERMITIDAS del backend (pdf, docx, xlsx)
+    const esValido = ['.pdf', '.docx', '.xlsx'].some(ext => nombre.endsWith(ext));
 
     if (!esValido) {
-      this.mostrarMensaje('Formato no permitido. Solo se aceptan archivos PDF y Word (.doc, .docx).', 'error');
+      this.mostrarMensaje('Formato no permitido. Solo se aceptan archivos PDF (.pdf), Word (.docx) y Excel (.xlsx).', 'error');
       return;
     }
 
@@ -526,7 +527,7 @@ export class Documentos implements OnInit {
   // Métodos auxiliares de formato y tipos
   esWord(extension?: string, nombre?: string): boolean {
     const ext = (extension || (nombre ? nombre.split('.').pop() : '') || '').toLowerCase();
-    return ext === 'doc' || ext === 'docx';
+    return ext === 'docx';
   }
 
   esPdf(extension?: string, nombre?: string): boolean {
@@ -534,9 +535,15 @@ export class Documentos implements OnInit {
     return ext === 'pdf';
   }
 
+  esExcel(extension?: string, nombre?: string): boolean {
+    const ext = (extension || (nombre ? nombre.split('.').pop() : '') || '').toLowerCase();
+    return ext === 'xlsx';
+  }
+
   obtenerTipoDocumento(extension?: string, nombre?: string): string {
     if (this.esWord(extension, nombre)) return 'Word';
     if (this.esPdf(extension, nombre)) return 'PDF';
+    if (this.esExcel(extension, nombre)) return 'Excel';
     const ext = (extension || (nombre ? nombre.split('.').pop() : '') || '').toUpperCase();
     return ext || 'Doc';
   }

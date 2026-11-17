@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,6 +7,7 @@ import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/
 import {
   AlternativaTraduccion,
   ContextoItem,
+  EstadoRegion,
   ExplicacionExpresion,
   GuardarConfiguracionSolicitud,
   Idioma,
@@ -18,6 +19,7 @@ import {
 import { GlosarioResumen, TerminoAplicado } from '../../../core/models/glosario.model';
 import { GlosarioService } from '../../../core/services/glosario.service';
 import { TraduccionService } from '../../../core/services/traduccion.service';
+import { VozService } from '../../../core/services/voz.service';
 
 @Component({
   selector: 'app-traduccion',
@@ -63,6 +65,14 @@ export class Traduccion {
   readonly variantes = signal<VarianteRegionalItem[]>([]);
   readonly glosarios = signal<GlosarioResumen[]>([]);
   readonly terminosAplicados = signal<TerminoAplicado[]>([]);
+  readonly estadoRegion = signal<EstadoRegion | null>(null);
+  readonly explicacionesProcesadas = signal(false);
+  readonly avisoVarianteLimpiada = signal('');
+
+  // Reproduccion por voz (HU-28)
+  readonly vozService = inject(VozService);
+  reproduccionAutomatica = false;
+  readonly avisoVoz = signal('');
 
   // Modal nuevo contexto
   readonly modalNuevoContextoAbierto = signal(false);
@@ -84,17 +94,36 @@ export class Traduccion {
     this.cargarGlosarios();
     this.cargarConfiguracionGuardada();
     this.configurarTraduccionAutomatica();
+    inject(DestroyRef).onDestroy(() => this.vozService.detener());
   }
 
+  /** Solo las variantes del idioma de destino actual; si no hay ninguna, la lista queda vacia */
   get variantesDisponibles(): VarianteRegionalItem[] {
-    const lista = this.variantes().filter(v => v.activo !== false);
     if (!this.destino) {
-      return lista;
+      return [];
     }
-    const coincidentes = lista.filter(v =>
-      v.codigo.toLowerCase().startsWith(this.destino.toLowerCase())
-    );
-    return coincidentes.length > 0 ? coincidentes : lista;
+    const destino = this.destino.toLowerCase();
+    const idIdiomaDestino = this.idiomas().find(i => i.codigo.toLowerCase() === destino)?.id;
+    return this.variantes().filter(v => {
+      if (v.activo === false) return false;
+      if (idIdiomaDestino !== undefined && v.id_idioma !== undefined) {
+        return v.id_idioma === idIdiomaDestino;
+      }
+      // Respaldo mientras cargan los idiomas: el codigo de la variante empieza por el del idioma (es-MX -> es)
+      return v.codigo.toLowerCase().split('-')[0] === destino;
+    });
+  }
+
+  /** Aviso breve sobre la localizacion cultural de la ultima traduccion */
+  get avisoRegion(): string {
+    switch (this.estadoRegion()) {
+      case 'incompatible':
+        return 'La región guardada no corresponde al idioma de destino; se tradujo sin localización.';
+      case 'error_adaptacion':
+        return 'No se pudo adaptar a la región en este momento; se muestra la traducción base.';
+      default:
+        return '';
+    }
   }
 
   /** Idioma de origen efectivo: el elegido o, si es automatico, el detectado */
@@ -170,6 +199,8 @@ export class Traduccion {
             this.listaAlternativas.set([]);
             this.listaModismos.set([]);
             this.terminosAplicados.set([]);
+            this.estadoRegion.set(null);
+            this.explicacionesProcesadas.set(false);
             const detalle = error?.error?.mensaje || error?.error?.detail || 'Ocurrió un error al traducir el texto.';
             this.mensaje.set(detalle);
             return of(null);
@@ -185,10 +216,17 @@ export class Traduccion {
         this.listaAlternativas.set(respuesta.resultado.alternativas ?? []);
         this.listaModismos.set(respuesta.resultado.explicacion_expresiones ?? []);
         this.terminosAplicados.set(respuesta.resultado.terminos_glosario_aplicados ?? []);
+        this.estadoRegion.set(respuesta.resultado.estado_region ?? null);
+        this.explicacionesProcesadas.set(respuesta.resultado.explicaciones_procesadas ?? false);
+        if (this.reproduccionAutomatica) {
+          this.escuchar();
+        }
       } else {
         this.listaAlternativas.set([]);
         this.listaModismos.set([]);
         this.terminosAplicados.set([]);
+        this.estadoRegion.set(null);
+        this.explicacionesProcesadas.set(false);
       }
     });
   }
@@ -200,6 +238,7 @@ export class Traduccion {
         if (respuesta.resultado.length > 0 && !this.destino) {
           this.destino = respuesta.resultado[0].codigo;
         }
+        this.verificarVarianteValida();
       },
       error: () => this.mensaje.set('No se pudieron cargar los idiomas disponibles.'),
     });
@@ -288,13 +327,23 @@ export class Traduccion {
     }
   }
 
+  /** Quita la variante seleccionada si no corresponde al idioma de destino actual */
   private verificarVarianteValida(): void {
-    if (this.idVarianteSeleccionada !== null) {
-      const disponibles = this.variantesDisponibles;
-      if (!disponibles.some(v => v.id_variante_regional === this.idVarianteSeleccionada)) {
-        this.idVarianteSeleccionada = null;
-      }
+    // Sin catalogos cargados no se puede decidir; se vuelve a verificar cuando terminen de cargar
+    if (this.idVarianteSeleccionada === null || !this.variantes().length || !this.idiomas().length) {
+      return;
     }
+    if (!this.variantesDisponibles.some(v => v.id_variante_regional === this.idVarianteSeleccionada)) {
+      this.idVarianteSeleccionada = null;
+      this.avisoVarianteLimpiada.set(
+        'La región seleccionada no corresponde al idioma de destino actual. Guarda la configuración para aplicar el cambio.'
+      );
+    }
+  }
+
+  onVarianteChange(idVariante: number | null): void {
+    this.idVarianteSeleccionada = idVariante;
+    this.avisoVarianteLimpiada.set('');
   }
 
   onContextoChange(valor: any): void {
@@ -376,6 +425,8 @@ export class Traduccion {
     this.listaAlternativas.set([]);
     this.listaModismos.set([]);
     this.terminosAplicados.set([]);
+    this.estadoRegion.set(null);
+    this.explicacionesProcesadas.set(false);
     this.favorito = false;
     this.mensaje.set('');
     this.cargando.set(false);
@@ -416,6 +467,7 @@ export class Traduccion {
     this.resultado = '';
     this.listaAlternativas.set([]);
     this.listaModismos.set([]);
+    this.explicacionesProcesadas.set(false);
     this.actualizarTexto(true);
   }
 
@@ -438,6 +490,7 @@ export class Traduccion {
             explicar_expresiones: this.modismos,
             generar_alternativas: this.alternativas,
           };
+          this.verificarVarianteValida();
         }
       },
       error: () => {
@@ -465,12 +518,14 @@ export class Traduccion {
       id_tono: this.idTonoSeleccionado,
       id_variante_regional: this.idVarianteSeleccionada !== null ? this.idVarianteSeleccionada : null,
       explicar_expresiones: this.modismos,
-      generar_alternativas: this.alternativas
+      generar_alternativas: this.alternativas,
+      idioma_destino: this.destino || null
     };
 
     this.traduccionService.guardarConfiguracion(payload).subscribe({
       next: (respuesta) => {
         this.guardandoConfiguracion.set(false);
+        this.avisoVarianteLimpiada.set('');
         this.mensaje.set(respuesta.mensaje || 'Configuracion guardada correctamente.');
 
         // Actualizamos la configuración guardada con los nuevos valores para deshabilitar el botón
@@ -512,15 +567,19 @@ export class Traduccion {
     }
   }
 
-  escuchar(): void {
-    if (!('speechSynthesis' in window)) {
+  async escuchar(): Promise<void> {
+    this.avisoVoz.set('');
+    const estado = await this.vozService.reproducir(this.resultado, this.destino);
+    if (estado === 'sin_soporte') {
       this.mensaje.set('Tu navegador no permite leer el texto en voz alta.');
-      return;
+    } else if (estado === 'sin_voz') {
+      const nombre = this.idiomas().find(i => i.codigo === this.destino)?.nombre || this.destino;
+      this.avisoVoz.set(`No hay una voz disponible para ${nombre} en este navegador.`);
     }
-    window.speechSynthesis.cancel();
-    const voz = new SpeechSynthesisUtterance(this.resultado);
-    voz.lang = this.destino;
-    window.speechSynthesis.speak(voz);
+  }
+
+  detenerVoz(): void {
+    this.vozService.detener();
   }
 }
 

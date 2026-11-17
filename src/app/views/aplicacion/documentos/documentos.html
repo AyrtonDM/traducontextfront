@@ -37,7 +37,7 @@
         <div>
           <strong>Flujo de trabajo para documentos:</strong>
           <ol>
-            <li>Arrastra o selecciona tus archivos en formato <strong>PDF</strong> o <strong>Word (.doc, .docx)</strong> hasta 20 MB.</li>
+            <li>Arrastra o selecciona tus archivos en formato <strong>PDF (.pdf)</strong>, <strong>Word (.docx)</strong> o <strong>Excel (.xlsx)</strong> hasta 20 MB.</li>
             <li>Ajusta el <strong>Contexto</strong>, <strong>Tono</strong> y <strong>Localización cultural</strong> en el panel derecho.</li>
             <li>Selecciona los idiomas en la tabla y presiona <strong>Traducir</strong> para generar el documento manteniendo su estructura.</li>
             <li>Descarga el archivo resultante directamente desde la tabla de documentos traducidos.</li>
@@ -103,13 +103,13 @@
           <input
             #fileInput
             type="file"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.docx,.xlsx"
             (change)="onArchivoSeleccionado($event)"
             hidden
           />
 
           <p class="dropzone-hint">
-            Formatos permitidos: PDF, Word (.doc, .docx) &nbsp;|&nbsp; Tamaño máximo: 20 MB
+            Formatos permitidos: PDF (.pdf), Word (.docx), Excel (.xlsx) &nbsp;|&nbsp; Tamaño máximo: 20 MB
           </p>
         </div>
       </section>
@@ -176,6 +176,10 @@
                           <span class="doc-type-icon icon-pdf" title="Documento PDF" aria-hidden="true">
                             <i class="fa fa-file-pdf-o"></i>
                           </span>
+                        } @else if (esExcel(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-excel" title="Documento Excel" aria-hidden="true">
+                            <i class="fa fa-file-excel-o"></i>
+                          </span>
                         } @else {
                           <span class="doc-type-icon icon-default" title="Documento" aria-hidden="true">
                             <i class="fa fa-file-text-o"></i>
@@ -189,6 +193,7 @@
                         class="badge-tipo"
                         [class.badge-word]="esWord(doc.extension, doc.nombre)"
                         [class.badge-pdf]="esPdf(doc.extension, doc.nombre)"
+                        [class.badge-excel]="esExcel(doc.extension, doc.nombre)"
                       >
                         {{ obtenerTipoDocumento(doc.extension, doc.nombre) }}
                       </span>
@@ -345,6 +350,10 @@
                           <span class="doc-type-icon icon-pdf" title="Documento PDF" aria-hidden="true">
                             <i class="fa fa-file-pdf-o"></i>
                           </span>
+                        } @else if (esExcel(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-excel" title="Documento Excel" aria-hidden="true">
+                            <i class="fa fa-file-excel-o"></i>
+                          </span>
                         } @else {
                           <span class="doc-type-icon icon-default" title="Documento" aria-hidden="true">
                             <i class="fa fa-file-text-o"></i>
@@ -358,6 +367,7 @@
                         class="badge-tipo"
                         [class.badge-word]="esWord(doc.extension, doc.nombre)"
                         [class.badge-pdf]="esPdf(doc.extension, doc.nombre)"
+                        [class.badge-excel]="esExcel(doc.extension, doc.nombre)"
                       >
                         {{ obtenerTipoDocumento(doc.extension, doc.nombre) }}
                       </span>

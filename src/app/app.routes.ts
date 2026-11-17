@@ -16,6 +16,8 @@ import { Usuarios } from './views/administracion/usuarios/usuarios';
 import { permisoGuard } from './core/guards/permiso.guard';
 import { Perfil } from './views/aplicacion/perfil/perfil';
 import { Glosarios } from './views/aplicacion/glosarios/glosarios';
+import { Conversaciones } from './views/aplicacion/conversaciones/conversaciones';
+import { ConversacionSesion } from './views/aplicacion/conversacion-sesion/conversacion-sesion';
 
 export const routes: Routes = [
   // ==========================
@@ -74,6 +76,21 @@ export const routes: Routes = [
       {
         path: 'glosarios',
         component: Glosarios
+      },
+
+      {
+        path: 'conversaciones',
+        component: Conversaciones
+      },
+
+      {
+        path: 'conversaciones/nueva',
+        component: ConversacionSesion
+      },
+
+      {
+        path: 'conversaciones/:id',
+        component: ConversacionSesion
       },
 
       {

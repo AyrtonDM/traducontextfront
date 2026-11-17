@@ -57,8 +57,30 @@
           <button class="icon-button" type="button" aria-label="Marcar como favorito en esta vista" [attr.aria-pressed]="favorito" [disabled]="!resultado" (click)="favorito = !favorito"><i class="fa" [class.fa-star]="favorito" [class.fa-star-o]="!favorito" aria-hidden="true"></i></button>
           <button class="icon-button" type="button" aria-label="Copiar traducción" [disabled]="!resultado" (click)="copiar()"><i class="fa fa-file-o" aria-hidden="true"></i></button>
           <button class="icon-button" type="button" aria-label="Escuchar traducción" [disabled]="!resultado" (click)="escuchar()"><i class="fa fa-volume-up" aria-hidden="true"></i></button>
+          @if (vozService.reproduciendo()) {
+            <button class="icon-button" type="button" aria-label="Detener reproducción" (click)="detenerVoz()"><i class="fa fa-stop" aria-hidden="true"></i></button>
+          }
+          <label class="voz-auto" title="Leer en voz alta cada nueva traducción">
+            <input type="checkbox" [(ngModel)]="reproduccionAutomatica" /> Auto
+          </label>
         </div>
       </div>
+      @if (avisoVoz()) {
+        <p class="aviso-traduccion aviso-voz" role="status">
+          <i class="fa fa-volume-off" aria-hidden="true"></i> {{ avisoVoz() }}
+        </p>
+      }
+      @if (avisoRegion) {
+        <p
+          class="aviso-traduccion"
+          [class.aviso-incompatible]="estadoRegion() === 'incompatible'"
+          [class.aviso-error]="estadoRegion() === 'error_adaptacion'"
+          role="status"
+        >
+          <i class="fa" [class.fa-map-marker]="estadoRegion() === 'incompatible'" [class.fa-exclamation-circle]="estadoRegion() === 'error_adaptacion'" aria-hidden="true"></i>
+          {{ avisoRegion }}
+        </p>
+      }
     </div>
       </section>
 
@@ -124,6 +146,15 @@
             }
           </div>
         </section>
+      } @else if (explicacionesProcesadas() && resultado) {
+        <section class="panel extra-panel modismos-panel" aria-labelledby="modismos-vacio-title">
+          <div class="extra-panel-header">
+            <h2 id="modismos-vacio-title" class="section-title">
+              <i class="fa fa-lightbulb-o" aria-hidden="true"></i> Modismos y expresiones culturales
+            </h2>
+          </div>
+          <p class="modismos-vacio">No se encontraron expresiones que requieran explicación.</p>
+        </section>
       }
 
       <div class="bottom-grid">
@@ -169,13 +200,20 @@
             <label>Variante regional <span class="optional">(opcional)</span>
               <span class="select-wrap">
                 <i class="fa fa-map-marker" aria-hidden="true"></i>
-                <select [(ngModel)]="idVarianteSeleccionada">
-                  <option [ngValue]="null">Sin preferencia</option>
+                <select
+                  [ngModel]="idVarianteSeleccionada"
+                  (ngModelChange)="onVarianteChange($event)"
+                  [disabled]="variantesDisponibles.length === 0"
+                >
+                  <option [ngValue]="null">{{ variantesDisponibles.length === 0 ? 'Sin regiones para este idioma' : 'Sin preferencia' }}</option>
                   @for (v of variantesDisponibles; track v.id_variante_regional) {
                     <option [ngValue]="v.id_variante_regional">{{ v.nombre }}</option>
                   }
                 </select>
               </span>
+              @if (avisoVarianteLimpiada()) {
+                <small class="glosario-ayuda aviso-region"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ avisoVarianteLimpiada() }}</small>
+              }
             </label>
             <label>Glosario <span class="optional">(opcional)</span>
               <span class="select-wrap">

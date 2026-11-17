@@ -1,0 +1,405 @@
+<main class="sesion-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><a routerLink="/conversaciones">Conversación</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">{{ esNueva ? 'Nueva' : 'Sesión' }}</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-microphone" aria-hidden="true"></i>
+      <div>
+        <h1>Conversación en tiempo real</h1>
+        <p>Traduce y comunica en distintos idiomas de forma inmediata.</p>
+      </div>
+    </div>
+    <div class="header-acciones">
+      <a class="btn-secundario" routerLink="/conversaciones">
+        <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a la lista
+      </a>
+      <button type="button" class="btn-ayuda" (click)="ayudaVisible.set(!ayudaVisible())" [attr.aria-expanded]="ayudaVisible()">
+        <i class="fa fa-question-circle" aria-hidden="true"></i> ¿Cómo funciona?
+      </button>
+    </div>
+  </header>
+
+  @if (ayudaVisible()) {
+    <aside class="info-panel">
+      <i class="fa fa-info-circle" aria-hidden="true"></i>
+      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje. La captura de voz y el asistente se habilitarán en las próximas etapas.</span>
+    </aside>
+  }
+
+  @if (mensajeError()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ mensajeError() }}</p>
+  }
+  @if (mensajeExito()) {
+    <p class="estado-mensaje exito pagina-mensaje" role="status"><i class="fa fa-check-circle" aria-hidden="true"></i> {{ mensajeExito() }}</p>
+  }
+
+  @if (cargandoSesion()) {
+    <p class="estado-mensaje"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando conversación...</p>
+  } @else if (!esNueva && !conversacion()) {
+    <section class="panel sesion-no-disponible">
+      <i class="fa fa-comments-o" aria-hidden="true"></i>
+      <p>La conversación no está disponible.</p>
+      <a class="btn-primario" routerLink="/conversaciones">Ir a mis conversaciones</a>
+    </section>
+  } @else {
+    <div class="sesion-layout">
+      <!-- CONFIGURACION -->
+      <form class="panel configuracion" aria-labelledby="titulo-configuracion" (ngSubmit)="esNueva ? iniciarConversacion() : guardarCambios()">
+        <h2 id="titulo-configuracion" class="section-title"><i class="fa fa-cog" aria-hidden="true"></i> Configuración de la conversación</h2>
+
+        <fieldset class="campo">
+          <legend>Idiomas de la conversación <span class="requerido">*</span></legend>
+          <div class="idiomas-fila">
+            <div class="select-icono">
+              <i class="fa fa-globe" aria-hidden="true"></i>
+              <select name="idIdiomaOrigen" aria-label="Idioma del participante 1" [(ngModel)]="formulario.idIdiomaOrigen" [disabled]="!esNueva || guardando()">
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (idioma of idiomas(); track idioma.id) {
+                  <option [ngValue]="idioma.id" [disabled]="idioma.id === formulario.idIdiomaDestino">{{ idioma.nombre }}</option>
+                }
+              </select>
+            </div>
+            <button type="button" class="btn-intercambio" (click)="intercambiarIdiomas()" [disabled]="!esNueva || guardando()" aria-label="Intercambiar idiomas" title="Intercambiar idiomas">
+              <i class="fa fa-exchange" aria-hidden="true"></i>
+            </button>
+            <div class="select-icono">
+              <i class="fa fa-globe" aria-hidden="true"></i>
+              <select name="idIdiomaDestino" aria-label="Idioma del participante 2" [(ngModel)]="formulario.idIdiomaDestino" [disabled]="!esNueva || guardando()">
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (idioma of idiomas(); track idioma.id) {
+                  <option [ngValue]="idioma.id" [disabled]="idioma.id === formulario.idIdiomaOrigen">{{ idioma.nombre }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          @if (!esNueva && !soloLectura) {
+            <small class="campo-ayuda">Los idiomas no se pueden cambiar en una sesión iniciada.</small>
+          }
+        </fieldset>
+
+        <label class="campo">Entorno de conversación <span class="requerido">*</span>
+          <span class="select-icono">
+            <i class="fa fa-users" aria-hidden="true"></i>
+            <select name="idEntorno" [(ngModel)]="formulario.idEntorno" [disabled]="!configuracionEditable || guardando()">
+              <option [ngValue]="null" disabled>Selecciona</option>
+              @for (entorno of entornos(); track entorno.id_entorno) {
+                <option [ngValue]="entorno.id_entorno">{{ entorno.nombre }}</option>
+              }
+            </select>
+          </span>
+        </label>
+
+        <label class="campo">Contexto / Dominio <span class="opcional">(opcional)</span>
+          <span class="select-icono">
+            <i class="fa fa-briefcase" aria-hidden="true"></i>
+            <select name="idContexto" [(ngModel)]="formulario.idContexto" [disabled]="!configuracionEditable || guardando()">
+              <option [ngValue]="null">Sin contexto</option>
+              @for (contexto of contextosActivos(); track contexto.id_contexto) {
+                <option [ngValue]="contexto.id_contexto">{{ contexto.nombre }}</option>
+              }
+            </select>
+          </span>
+        </label>
+
+        <label class="campo">Descripción del contexto <span class="opcional">(opcional)</span>
+          <textarea
+            name="descripcionContexto"
+            rows="3"
+            [maxlength]="longitudMaximaDescripcion"
+            placeholder="Situación, audiencia o terminología. Ej.: reunión de seguimiento de un proyecto de software con el cliente."
+            [(ngModel)]="formulario.descripcionContexto"
+            [disabled]="!configuracionEditable || guardando()"
+          ></textarea>
+          <small class="campo-ayuda contador">{{ formulario.descripcionContexto.length }}/{{ longitudMaximaDescripcion }}</small>
+        </label>
+
+        <label class="campo">Tono <span class="opcional">(opcional)</span>
+          <span class="select-icono">
+            <i class="fa fa-commenting-o" aria-hidden="true"></i>
+            <select name="idTono" [(ngModel)]="formulario.idTono" [disabled]="!configuracionEditable || guardando()">
+              <option [ngValue]="null">Sin tono</option>
+              @for (tono of tonosActivos(); track tono.id_tono) {
+                <option [ngValue]="tono.id_tono">{{ tono.nombre }}</option>
+              }
+            </select>
+          </span>
+        </label>
+
+        <div class="opciones">
+          <h3>Otras opciones</h3>
+          <label class="toggle">
+            <input type="checkbox" role="switch" name="mantenerContexto" [(ngModel)]="formulario.mantenerContexto" [disabled]="!configuracionEditable || guardando()">
+            <span class="switch" aria-hidden="true"></span>
+            Mantener contexto de la conversación
+            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="Usará las intervenciones anteriores de esta sesión para interpretar las siguientes. La preferencia se guarda ahora y se aplicará cuando se habiliten las intervenciones."></i>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" role="switch" name="asistenciaConversacional" [(ngModel)]="formulario.asistenciaConversacional" [disabled]="!configuracionEditable || guardando()">
+            <span class="switch" aria-hidden="true"></span>
+            Asistencia conversacional
+            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="Sugerirá respuestas y aclaraciones durante la conversación. La preferencia se guarda ahora y se aplicará cuando se habilite el asistente."></i>
+          </label>
+        </div>
+
+        @if (esNueva) {
+          <button type="submit" class="btn-primario btn-bloque" [disabled]="guardando()">
+            <i class="fa" [class.fa-microphone]="!guardando()" [class.fa-spinner]="guardando()" [class.fa-spin]="guardando()" aria-hidden="true"></i>
+            {{ guardando() ? 'Iniciando...' : 'Iniciar conversación' }}
+          </button>
+        } @else if (hayCambios) {
+          <button type="submit" class="btn-primario btn-bloque" [disabled]="guardando()">
+            <i class="fa" [class.fa-floppy-o]="!guardando()" [class.fa-spinner]="guardando()" [class.fa-spin]="guardando()" aria-hidden="true"></i>
+            {{ guardando() ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
+        }
+      </form>
+
+      <!-- CONVERSACION -->
+      <section class="panel conversacion-panel" aria-labelledby="titulo-conversacion">
+        <div class="conversacion-header">
+          <h2 id="titulo-conversacion" class="section-title"><i class="fa fa-users" aria-hidden="true"></i> {{ tituloConversacion }}</h2>
+          <span [class]="'estado-insignia ' + claseInsignia" role="status">
+            <i class="fa fa-circle" aria-hidden="true"></i> {{ etiquetaInsignia }}
+          </span>
+        </div>
+
+        <div class="mensajes-area">
+          @if (intervenciones().length > 0) {
+            <ol #listaMensajes class="mensajes-lista" aria-label="Intervenciones de la conversación" aria-live="polite">
+              @for (intervencion of intervenciones(); track intervencion.id) {
+                <li
+                  [class]="'mensaje participante-' + (intervencion.orden_participante ?? 1)"
+                  [class.mensaje-error]="intervencion.estado === 'error'"
+                  [attr.aria-busy]="intervencion.estado === 'procesando'"
+                >
+                  <div class="mensaje-cabecera">
+                    <span class="participante-punto" aria-hidden="true"></span>
+                    <span class="mensaje-autor">{{ intervencion.nombre_participante || 'Participante ' + (intervencion.orden_participante ?? '') }}</span>
+                    <span class="mensaje-idioma" [title]="(intervencion.nombre_idioma_origen || '') + ' → ' + (intervencion.nombre_idioma_destino || '')">
+                      {{ intervencion.codigo_idioma_origen || intervencion.nombre_idioma_origen }}
+                      <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+                      {{ intervencion.codigo_idioma_destino || intervencion.nombre_idioma_destino }}
+                    </span>
+                  </div>
+
+                  <p class="mensaje-original" [attr.lang]="intervencion.codigo_idioma_origen">{{ intervencion.texto_original }}</p>
+
+                  @switch (intervencion.estado) {
+                    @case ('traducida') {
+                      <div class="mensaje-traduccion">
+                        <p [attr.lang]="intervencion.codigo_idioma_destino">{{ intervencion.texto_traducido }}</p>
+                        @if (!intervencion.temporal) {
+                          <button
+                            type="button"
+                            class="btn-mini btn-voz-mensaje"
+                            (click)="reproducirVoz(intervencion)"
+                            [disabled]="!sesionActiva()"
+                            [attr.aria-label]="estaReproduciendo(intervencion) ? 'Detener lectura' : 'Escuchar traducción'"
+                            [title]="sesionActiva() ? (estaReproduciendo(intervencion) ? 'Detener' : 'Escuchar traducción') : 'Disponible con la sesión activa'"
+                          >
+                            <i class="fa" [class.fa-volume-up]="!estaReproduciendo(intervencion)" [class.fa-stop]="estaReproduciendo(intervencion)" aria-hidden="true"></i>
+                          </button>
+                        }
+                      </div>
+                    }
+                    @case ('procesando') {
+                      <p class="mensaje-estado">
+                        <i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...
+                        @if (puedeReintentar(intervencion) && sesionActiva()) {
+                          <button type="button" class="btn-reintentar" (click)="reintentarIntervencion(intervencion)" [disabled]="estaReintentando(intervencion)" title="Úsalo si la traducción se quedó detenida">
+                            Reintentar
+                          </button>
+                        }
+                      </p>
+                    }
+                    @case ('error') {
+                      <p class="mensaje-estado error" role="alert">
+                        <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+                        {{ intervencion.mensaje_error || 'No se pudo traducir la intervención.' }}
+                        @if (puedeReintentar(intervencion) && sesionActiva()) {
+                          <button type="button" class="btn-reintentar" (click)="reintentarIntervencion(intervencion)" [disabled]="estaReintentando(intervencion)">
+                            <i class="fa fa-refresh" [class.fa-spin]="estaReintentando(intervencion)" aria-hidden="true"></i>
+                            {{ estaReintentando(intervencion) ? 'Reintentando...' : 'Reintentar' }}
+                          </button>
+                        }
+                      </p>
+                    }
+                  }
+                </li>
+              }
+            </ol>
+          } @else if (cargandoIntervenciones()) {
+            <p class="estado-mensaje mensajes-cargando"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando intervenciones...</p>
+          } @else {
+            <div class="mensajes-vacio">
+              <i class="fa fa-comments-o" aria-hidden="true"></i>
+              <p class="mensajes-vacio-titulo">La conversación aparecerá aquí</p>
+              <p>Escribe la intervención de cada participante en la barra inferior: verás el texto original y su traducción al idioma del otro participante.</p>
+            </div>
+          }
+        </div>
+
+        <!-- ENTRADA DE TEXTO -->
+        <form class="entrada-intervencion" (ngSubmit)="enviarIntervencion()" aria-label="Escribir intervención">
+          <div class="hablante" role="group" aria-label="Quién habla">
+            <span class="hablante-etiqueta">Habla:</span>
+            @for (participante of participantesSesion(); track participante.id_participante) {
+              <button
+                type="button"
+                [class]="'btn-hablante participante-' + participante.orden"
+                [class.activo]="idParticipanteHablante() === participante.id_participante"
+                [attr.aria-pressed]="idParticipanteHablante() === participante.id_participante"
+                [disabled]="!sesionActiva() || enviando()"
+                (click)="idParticipanteHablante.set(participante.id_participante)"
+              >
+                <span class="participante-punto" aria-hidden="true"></span>
+                {{ participante.nombre }}
+                <span class="participante-idioma">{{ participante.codigo_idioma || participante.nombre_idioma }}</span>
+              </button>
+            }
+          </div>
+
+          <div class="entrada-fila">
+            <textarea
+              #entradaTexto
+              name="textoIntervencion"
+              rows="2"
+              [maxlength]="longitudMaximaIntervencion"
+              aria-label="Texto de la intervención"
+              [placeholder]="sesionActiva() ? 'Escribe la intervención... (Enter envía, Shift+Enter salto de línea)' : 'Entrada deshabilitada'"
+              [(ngModel)]="textoIntervencion"
+              [disabled]="!sesionActiva()"
+              [readonly]="enviando()"
+              (keydown)="alPulsarTecla($event)"
+            ></textarea>
+            <button type="submit" class="btn-primario btn-enviar" [disabled]="!puedeEnviar()" aria-label="Enviar intervención">
+              <i class="fa" [class.fa-paper-plane]="!enviando()" [class.fa-spinner]="enviando()" [class.fa-spin]="enviando()" aria-hidden="true"></i>
+              <span>{{ enviando() ? 'Enviando...' : 'Enviar' }}</span>
+            </button>
+          </div>
+
+          <div class="entrada-pie">
+            @if (errorIntervencion()) {
+              <p class="entrada-aviso error" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorIntervencion() }}</p>
+            } @else if (avisoEntrada()) {
+              <p class="entrada-aviso" role="status"><i class="fa fa-info-circle" aria-hidden="true"></i> {{ avisoEntrada() }}</p>
+            } @else if (avisoVoz()) {
+              <p class="entrada-aviso" role="status"><i class="fa fa-volume-off" aria-hidden="true"></i> {{ avisoVoz() }}</p>
+            }
+            <small class="campo-ayuda contador">{{ textoIntervencion().length }}/{{ longitudMaximaIntervencion }}</small>
+          </div>
+        </form>
+
+        <div class="barra-controles">
+          <div class="participantes">
+            <button type="button" class="btn-participantes" (click)="participantesVisibles.set(!participantesVisibles())" [attr.aria-expanded]="participantesVisibles()" aria-controls="lista-participantes">
+              <i class="fa fa-users" aria-hidden="true"></i> Participantes ({{ participantes.length }})
+              <i class="fa" [class.fa-chevron-up]="participantesVisibles()" [class.fa-chevron-down]="!participantesVisibles()" aria-hidden="true"></i>
+            </button>
+            @if (participantesVisibles()) {
+              <ul id="lista-participantes" class="participantes-lista">
+                @for (participante of participantes; track participante.orden) {
+                  <li [class]="'participante participante-' + participante.orden">
+                    <span class="participante-punto" aria-hidden="true"></span>
+                    @if (idParticipanteEditando() !== null && idParticipanteEditando() === participante.id_participante) {
+                      <input
+                        class="participante-input"
+                        type="text"
+                        name="nombreParticipante"
+                        maxlength="100"
+                        [attr.aria-label]="'Nombre del participante ' + participante.orden"
+                        [(ngModel)]="nombreParticipante"
+                        [disabled]="guardando()"
+                        (keydown.enter)="guardarParticipante()"
+                        (keydown.escape)="cancelarEdicionParticipante()"
+                      >
+                      <button type="button" class="btn-mini" (click)="guardarParticipante()" [disabled]="guardando()" aria-label="Guardar nombre"><i class="fa fa-check" aria-hidden="true"></i></button>
+                      <button type="button" class="btn-mini" (click)="cancelarEdicionParticipante()" [disabled]="guardando()" aria-label="Cancelar edición"><i class="fa fa-times" aria-hidden="true"></i></button>
+                    } @else {
+                      <span class="participante-nombre">{{ participante.nombre }}</span>
+                      <span class="participante-idioma">{{ participante.nombre_idioma }}</span>
+                      @if (participante.id_participante !== null && !soloLectura) {
+                        <button type="button" class="btn-mini" (click)="editarParticipante(participante)" [disabled]="guardando()" [attr.aria-label]="'Renombrar ' + participante.nombre" title="Renombrar participante">
+                          <i class="fa fa-pencil" aria-hidden="true"></i>
+                        </button>
+                      }
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <div class="controles-centrales">
+            <button type="button" class="btn-control microfono" disabled aria-label="Micrófono (disponible próximamente)" title="La captura de voz estará disponible próximamente">
+              <i class="fa fa-microphone" aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              class="btn-control"
+              (click)="alternarPausa()"
+              [disabled]="!conversacion() || soloLectura || guardando()"
+              [attr.aria-label]="conversacion()?.estado === 'pausada' ? 'Reanudar conversación' : 'Pausar conversación'"
+              [title]="conversacion()?.estado === 'pausada' ? 'Reanudar' : 'Pausar'"
+            >
+              <i class="fa" [class.fa-play]="conversacion()?.estado === 'pausada'" [class.fa-pause]="conversacion()?.estado !== 'pausada'" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn-control detener" (click)="solicitarFinalizar()" [disabled]="!conversacion() || soloLectura || guardando()" aria-label="Detener conversación" title="Detener">
+              <i class="fa fa-stop" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div class="controles-derecha">
+            <button type="button" class="btn-asistente" disabled title="El asistente estará disponible próximamente">
+              <i class="fa fa-magic" aria-hidden="true"></i> Asistente
+            </button>
+            <button type="button" class="btn-voz" disabled title="La reproducción por voz estará disponible próximamente">
+              <i class="fa fa-volume-up" aria-hidden="true"></i> Reproducción por voz <i class="fa fa-chevron-down" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  }
+
+  <!-- MODAL CONFIRMAR FINALIZACION -->
+  @if (confirmarFinalizar() && conversacion(); as aFinalizar) {
+    <div class="modal-overlay" (click)="cancelarFinalizar()">
+      <div
+        class="modal-card"
+        (click)="$event.stopPropagation()"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="modal-finalizar-titulo"
+        aria-describedby="modal-finalizar-texto"
+      >
+        <div class="modal-header">
+          <h3 id="modal-finalizar-titulo">
+            <i class="fa fa-stop-circle" aria-hidden="true"></i>
+            Finalizar conversación
+          </h3>
+          <button type="button" class="modal-close" aria-label="Cerrar modal" (click)="cancelarFinalizar()" [disabled]="guardando()">
+            <i class="fa fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p id="modal-finalizar-texto" class="modal-texto">
+            ¿Seguro que deseas finalizar esta sesión? Ya no admitirá nuevas intervenciones ni podrá reanudarse. Esta acción no se puede deshacer.
+          </p>
+          <blockquote class="modal-cita">{{ tituloConversacion }} · {{ aFinalizar.nombre_idioma_origen }} → {{ aFinalizar.nombre_idioma_destino }}</blockquote>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancelar" (click)="cancelarFinalizar()" [disabled]="guardando()">Cancelar</button>
+          <button type="button" class="btn-modal-eliminar" (click)="finalizarConfirmado()" [disabled]="guardando()">
+            <i class="fa" [class.fa-stop]="!guardando()" [class.fa-spinner]="guardando()" [class.fa-spin]="guardando()" aria-hidden="true"></i>
+            {{ guardando() ? 'Finalizando...' : 'Finalizar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

@@ -345,6 +345,9 @@
 .icon-pdf {
   color: #DC2626;
 }
+.icon-excel {
+  color: #16A34A;
+}
 .icon-default {
   color: var(--doc-text-muted);
 }
@@ -385,6 +388,10 @@
 .badge-pdf {
   background: #FEF2F2;
   color: #991B1B;
+}
+.badge-excel {
+  background: #F0FDF4;
+  color: #166534;
 }
 
 /* Badges de Estado */
