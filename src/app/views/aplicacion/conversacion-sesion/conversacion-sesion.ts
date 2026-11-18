@@ -94,6 +94,35 @@ const MENSAJES_RECONOCIMIENTO: Record<ErrorReconocimiento, string> = {
   desconocido: 'No se pudo reconocer el audio. Vuelve a intentarlo.',
 };
 
+/** Reproduccion por voz (HU-28): solo con el boton de cada mensaje o tambien automatica */
+export type ModoVoz = 'manual' | 'automatica';
+
+export const ETIQUETAS_MODO_VOZ: Record<ModoVoz, string> = {
+  manual: 'Manual',
+  automatica: 'Automática',
+};
+
+/** Preferencia del modo de voz, comun a todas las conversaciones de este navegador */
+const CLAVE_MODO_VOZ = 'traducontext.reproduccionVoz';
+
+/** El almacenamiento puede no existir o lanzar (ventana privada, datos bloqueados): se usa 'manual' */
+function leerModoVoz(): ModoVoz {
+  try {
+    const valor = localStorage.getItem(CLAVE_MODO_VOZ);
+    return valor === 'automatica' ? 'automatica' : 'manual';
+  } catch {
+    return 'manual';
+  }
+}
+
+function guardarModoVoz(modo: ModoVoz): void {
+  try {
+    localStorage.setItem(CLAVE_MODO_VOZ, modo);
+  } catch {
+    // Sin almacenamiento la preferencia solo dura mientras la pantalla este abierta
+  }
+}
+
 const ETIQUETAS_ESTADO_AUDIO: Record<EstadoAudio, string> = {
   inactivo: '',
   esperando: 'Esperando audio del micrófono...',
@@ -102,7 +131,8 @@ const ETIQUETAS_ESTADO_AUDIO: Record<EstadoAudio, string> = {
 };
 
 /**
- * Pantalla "Conversación en tiempo real" (HU-23, HU-24, HU-29 configuracion, HU-31 participantes).
+ * Pantalla "Conversación en tiempo real" (HU-23, HU-24, HU-29 configuracion, HU-31 participantes,
+ * HU-28 reproduccion por voz manual y automatica).
  * /conversaciones/nueva: configura y crea la sesion. /conversaciones/:id: consulta y controla una sesion.
  */
 @Component({
@@ -111,6 +141,10 @@ const ETIQUETAS_ESTADO_AUDIO: Record<EstadoAudio, string> = {
   imports: [FormsModule, RouterLink],
   templateUrl: './conversacion-sesion.html',
   styleUrl: './conversacion-sesion.css',
+  host: {
+    '(document:click)': 'cerrarMenuVozSiFuera($event)',
+    '(document:keydown.escape)': 'menuVozAbierto.set(false)',
+  },
 })
 export class ConversacionSesion {
   private readonly conversacionService = inject(ConversacionService);
@@ -160,6 +194,17 @@ export class ConversacionSesion {
   readonly avisoVoz = signal('');
   readonly idReproduciendo = signal<number | null>(null);
   readonly longitudMaximaIntervencion = LONGITUD_MAXIMA_INTERVENCION;
+
+  // Reproduccion por voz automatica (HU-28)
+  readonly modoVoz = signal<ModoVoz>(leerModoVoz());
+  readonly etiquetasModoVoz = ETIQUETAS_MODO_VOZ;
+  readonly modosVoz: ModoVoz[] = ['manual', 'automatica'];
+  readonly menuVozAbierto = signal(false);
+  private readonly menuVoz = viewChild<ElementRef<HTMLElement>>('menuVoz');
+  /** En modo automatico no se lee con el microfono encendido (se transcribiria la voz sintetizada) */
+  readonly lecturaAutomaticaPausada = computed(
+    () => this.modoVoz() === 'automatica' && this.reconocimiento.escuchando(),
+  );
 
   private readonly listaMensajes = viewChild<ElementRef<HTMLElement>>('listaMensajes');
   private readonly entradaTexto = viewChild<ElementRef<HTMLTextAreaElement>>('entradaTexto');
@@ -211,10 +256,11 @@ export class ConversacionSesion {
       this.reconocimiento.detener();
     });
 
-    // No se transcribe con la sesion pausada o finalizada; lo dictado pendiente pasa a la caja de texto
+    // No se transcribe ni se reproduce voz con la sesion pausada o finalizada; lo dictado pendiente pasa a la caja de texto
     effect(() => {
       if (!this.sesionActiva()) {
         untracked(() => {
+          this.detenerReproduccion();
           this.reconocimiento.detener();
           this.colaVoz.splice(0).forEach((fragmento) => this.conservarTextoVoz(fragmento.texto));
         });
@@ -642,6 +688,8 @@ export class ConversacionSesion {
     if (!hablante) {
       return;
     }
+    // Evita transcribir la voz sintetizada que este sonando
+    this.detenerReproduccion();
     this.avisoMicrofono.set('');
     const error = this.reconocimiento.iniciar(hablante.codigo_idioma ?? '', {
       alFinal: (texto) => this.encolarVoz(texto),
@@ -713,6 +761,7 @@ export class ConversacionSesion {
         next: (respuesta) => {
           this.quitarTemporal(temporal.id);
           this.agregar([respuesta.resultado]);
+          this.reproducirAutomatica(respuesta.resultado);
           if (!desdeVoz) {
             this.textoIntervencion.set('');
           }
@@ -746,7 +795,10 @@ export class ConversacionSesion {
       .reintentarIntervencion(actual.id_conversacion, intervencion.id)
       .pipe(finalize(() => this.marcarReintento(intervencion.id, false)))
       .subscribe({
-        next: (respuesta) => this.agregar([respuesta.resultado]),
+        next: (respuesta) => {
+          this.agregar([respuesta.resultado]);
+          this.reproducirAutomatica(respuesta.resultado);
+        },
         error: (error) => {
           this.errorIntervencion.set(this.extraerError(error, 'No se pudo reintentar la traducción.'));
           this.manejarErrorSesion(error, actual.id_conversacion);
@@ -778,8 +830,32 @@ export class ConversacionSesion {
       this.reconocimiento.detener();
       this.avisoMicrofono.set('Se detuvo el micrófono para no transcribir la voz reproducida.');
     }
+    await this.reproducir(intervencion);
+  }
+
+  /**
+   * Lectura automatica (HU-28) de una traduccion recien recibida, en el idioma de destino de esa
+   * intervencion. No se lee con el microfono encendido (no se apaga: se avisa) ni con la sesion inactiva.
+   * Una nueva lectura corta la anterior.
+   */
+  private reproducirAutomatica(intervencion: IntervencionVista): void {
+    if (
+      this.modoVoz() !== 'automatica' ||
+      intervencion.temporal ||
+      intervencion.estado !== 'traducida' ||
+      !intervencion.texto_traducido ||
+      !this.sesionActiva() ||
+      this.reconocimiento.escuchando()
+    ) {
+      return;
+    }
+    this.avisoVoz.set('');
+    void this.reproducir(intervencion);
+  }
+
+  private async reproducir(intervencion: IntervencionVista): Promise<void> {
     const resultado = await this.vozService.reproducir(
-      intervencion.texto_traducido,
+      intervencion.texto_traducido ?? '',
       intervencion.codigo_idioma_destino ?? '',
       this.conversacion()?.estado === 'activa',
     );
@@ -797,6 +873,31 @@ export class ConversacionSesion {
 
   estaReproduciendo(intervencion: IntervencionVista): boolean {
     return this.vozService.reproduciendo() && this.idReproduciendo() === intervencion.id;
+  }
+
+  // ---------- Desplegable "Reproducción por voz" (HU-28) ----------
+
+  alternarMenuVoz(): void {
+    this.menuVozAbierto.update((abierto) => !abierto);
+  }
+
+  elegirModoVoz(modo: ModoVoz): void {
+    this.modoVoz.set(modo);
+    guardarModoVoz(modo);
+    this.menuVozAbierto.set(false);
+  }
+
+  detenerReproduccion(): void {
+    this.vozService.detener();
+    this.idReproduciendo.set(null);
+    this.menuVozAbierto.set(false);
+  }
+
+  cerrarMenuVozSiFuera(evento: Event): void {
+    const menu = this.menuVoz()?.nativeElement;
+    if (this.menuVozAbierto() && menu && !menu.contains(evento.target as Node)) {
+      this.menuVozAbierto.set(false);
+    }
   }
 
   /**

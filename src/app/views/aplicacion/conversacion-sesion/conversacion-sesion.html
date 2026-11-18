@@ -24,7 +24,7 @@
   @if (ayudaVisible()) {
     <aside class="info-panel">
       <i class="fa fa-info-circle" aria-hidden="true"></i>
-      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje. También puedes pulsar el <strong>micrófono</strong> y hablar: verás la transcripción mientras hablas y cada frase se enviará como intervención de quien esté seleccionado. El asistente se habilitará en una próxima etapa.</span>
+      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje o, con <strong>Reproducción por voz: Automática</strong>, oír cada traducción nueva al llegar (no se lee mientras el micrófono está encendido). También puedes pulsar el <strong>micrófono</strong> y hablar: verás la transcripción mientras hablas y cada frase se enviará como intervención de quien esté seleccionado. El asistente se habilitará en una próxima etapa.</span>
     </aside>
   }
 
@@ -133,13 +133,13 @@
             <input type="checkbox" role="switch" name="mantenerContexto" [(ngModel)]="formulario.mantenerContexto" [disabled]="!configuracionEditable || guardando()">
             <span class="switch" aria-hidden="true"></span>
             Mantener contexto de la conversación
-            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="Usará las intervenciones anteriores de esta sesión para interpretar las siguientes. La preferencia se guarda ahora y se aplicará cuando se habiliten las intervenciones."></i>
+            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="Usa las últimas intervenciones de esta sesión (hasta 5) como contexto para interpretar y traducir las siguientes."></i>
           </label>
           <label class="toggle">
             <input type="checkbox" role="switch" name="asistenciaConversacional" [(ngModel)]="formulario.asistenciaConversacional" [disabled]="!configuracionEditable || guardando()">
             <span class="switch" aria-hidden="true"></span>
             Asistencia conversacional
-            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="Sugerirá respuestas y aclaraciones durante la conversación. La preferencia se guarda ahora y se aplicará cuando se habilite el asistente."></i>
+            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="El asistente (sugerencias de respuesta y aclaraciones) aún no está disponible. Por ahora solo se guarda esta preferencia."></i>
           </label>
         </div>
 
@@ -313,6 +313,9 @@
           @if (avisoMicrofono()) {
             <p class="entrada-aviso aviso-microfono" role="alert"><i class="fa fa-microphone-slash" aria-hidden="true"></i> {{ avisoMicrofono() }}</p>
           }
+          @if (lecturaAutomaticaPausada()) {
+            <p class="entrada-aviso aviso-microfono" role="status"><i class="fa fa-volume-off" aria-hidden="true"></i> La lectura automática se pausa mientras el micrófono está encendido.</p>
+          }
 
           <div class="entrada-pie">
             @if (errorIntervencion()) {
@@ -398,9 +401,41 @@
             <button type="button" class="btn-asistente" disabled title="El asistente estará disponible próximamente">
               <i class="fa fa-magic" aria-hidden="true"></i> Asistente
             </button>
-            <button type="button" class="btn-voz" disabled title="La reproducción por voz estará disponible próximamente">
-              <i class="fa fa-volume-up" aria-hidden="true"></i> Reproducción por voz <i class="fa fa-chevron-down" aria-hidden="true"></i>
-            </button>
+            <div class="menu-voz" #menuVoz>
+              <button
+                type="button"
+                class="btn-voz"
+                (click)="alternarMenuVoz()"
+                [disabled]="!vozService.soportado"
+                aria-haspopup="menu"
+                [attr.aria-expanded]="menuVozAbierto()"
+                aria-controls="menu-voz-opciones"
+                [title]="vozService.soportado ? 'Elige cómo se reproducen las traducciones' : 'Tu navegador no permite leer el texto en voz alta'"
+              >
+                <i class="fa" [class.fa-volume-up]="!vozService.reproduciendo()" [class.fa-spinner]="vozService.reproduciendo()" [class.fa-pulse]="vozService.reproduciendo()" aria-hidden="true"></i>
+                Reproducción por voz: {{ etiquetasModoVoz[modoVoz()] }}
+                <i class="fa fa-chevron-down" aria-hidden="true"></i>
+              </button>
+              @if (menuVozAbierto()) {
+                <div class="menu-voz-lista" id="menu-voz-opciones" role="menu" aria-label="Reproducción por voz">
+                  @for (modo of modosVoz; track modo) {
+                    <button type="button" role="menuitemradio" class="menu-voz-opcion" [attr.aria-checked]="modoVoz() === modo" (click)="elegirModoVoz(modo)">
+                      <i class="fa fa-check" [class.invisible]="modoVoz() !== modo" aria-hidden="true"></i>
+                      <span>
+                        {{ etiquetasModoVoz[modo] }}
+                        <small>{{ modo === 'manual' ? 'Solo con el botón de cada mensaje' : 'Lee cada traducción nueva al llegar' }}</small>
+                      </span>
+                    </button>
+                  }
+                  @if (vozService.reproduciendo()) {
+                    <button type="button" role="menuitem" class="menu-voz-opcion detener" (click)="detenerReproduccion()">
+                      <i class="fa fa-stop" aria-hidden="true"></i>
+                      <span>Detener reproducción</span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
           </div>
         </div>
       </section>
