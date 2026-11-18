@@ -5,8 +5,10 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -15,6 +17,11 @@ import { Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { Intervencion, LONGITUD_MAXIMA_INTERVENCION } from '../../../core/models/intervencion.model';
 import { VozService } from '../../../core/services/voz.service';
+import {
+  ErrorReconocimiento,
+  EstadoAudio,
+  ReconocimientoVozService,
+} from '../../../core/services/reconocimiento-voz.service';
 import {
   ActualizarConversacionSolicitud,
   Conversacion,
@@ -65,6 +72,35 @@ const UMBRAL_SCROLL_FINAL = 40;
  */
 type IntervencionVista = Intervencion & { temporal?: true };
 
+/** Hablante elegido en la barra de entrada: un participante o "No identificado" (HU-31) */
+export const NO_IDENTIFICADO = 'no_identificado' as const;
+type Hablante = number | typeof NO_IDENTIFICADO;
+
+/** Fragmento final dictado por voz pendiente de enviarse, con el hablante que estaba seleccionado */
+interface FragmentoVoz {
+  texto: string;
+  idParticipante: number;
+}
+
+const MENSAJES_RECONOCIMIENTO: Record<ErrorReconocimiento, string> = {
+  sin_soporte: 'Tu navegador no permite el reconocimiento de voz. Usa Chrome o Edge, o escribe la intervención.',
+  sin_permiso: 'No hay permiso para usar el micrófono. Autorízalo en el navegador y vuelve a intentarlo.',
+  sin_microfono: 'No se encontró un micrófono disponible.',
+  sin_conexion: 'No hay conexión con el servicio de reconocimiento de voz.',
+  sin_voz: 'No se detectó voz. Sigue hablando o revisa el micrófono.',
+  no_reconocido: 'No se entendió lo que dijiste. Repítelo más despacio o más cerca del micrófono.',
+  sin_audio: 'El micrófono no está recibiendo sonido. Revisa el dispositivo de entrada o el permiso de micrófono de Windows para el navegador.',
+  idioma_no_soportado: 'El reconocimiento de voz no admite el idioma de este participante.',
+  desconocido: 'No se pudo reconocer el audio. Vuelve a intentarlo.',
+};
+
+const ETIQUETAS_ESTADO_AUDIO: Record<EstadoAudio, string> = {
+  inactivo: '',
+  esperando: 'Esperando audio del micrófono...',
+  audio: 'Escuchando... habla y cada frase se enviará al terminar.',
+  voz: 'Te estoy escuchando...',
+};
+
 /**
  * Pantalla "Conversación en tiempo real" (HU-23, HU-24, HU-29 configuracion, HU-31 participantes).
  * /conversaciones/nueva: configura y crea la sesion. /conversaciones/:id: consulta y controla una sesion.
@@ -83,6 +119,7 @@ export class ConversacionSesion {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   readonly vozService = inject(VozService);
+  readonly reconocimiento = inject(ReconocimientoVozService);
 
   /** null en /conversaciones/nueva */
   readonly idConversacion: number | null;
@@ -117,7 +154,8 @@ export class ConversacionSesion {
   readonly enviando = signal(false);
   readonly reintentando = signal<ReadonlySet<number>>(new Set());
   readonly textoIntervencion = signal('');
-  readonly idParticipanteHablante = signal<number | null>(null);
+  readonly idParticipanteHablante = signal<Hablante | null>(null);
+  readonly noIdentificado = NO_IDENTIFICADO;
   readonly errorIntervencion = signal('');
   readonly avisoVoz = signal('');
   readonly idReproduciendo = signal<number | null>(null);
@@ -126,6 +164,17 @@ export class ConversacionSesion {
   private readonly listaMensajes = viewChild<ElementRef<HTMLElement>>('listaMensajes');
   private readonly entradaTexto = viewChild<ElementRef<HTMLTextAreaElement>>('entradaTexto');
   private contadorTemporal = 0;
+
+  // Transcripcion por voz (HU-25)
+  readonly avisoMicrofono = signal('');
+  private colaVoz: FragmentoVoz[] = [];
+
+  /** Texto del recuadro de transcripcion mientras no hay resultado parcial */
+  readonly etiquetaEstadoAudio = computed(() => {
+    const etiqueta = ETIQUETAS_ESTADO_AUDIO[this.reconocimiento.estadoAudio()];
+    const idioma = this.reconocimiento.idiomaActivo();
+    return etiqueta && idioma ? `${etiqueta} (${idioma})` : etiqueta;
+  });
 
   readonly sesionActiva = computed(() => this.conversacion()?.estado === 'activa');
 
@@ -157,7 +206,20 @@ export class ConversacionSesion {
   });
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.vozService.detener());
+    inject(DestroyRef).onDestroy(() => {
+      this.vozService.detener();
+      this.reconocimiento.detener();
+    });
+
+    // No se transcribe con la sesion pausada o finalizada; lo dictado pendiente pasa a la caja de texto
+    effect(() => {
+      if (!this.sesionActiva()) {
+        untracked(() => {
+          this.reconocimiento.detener();
+          this.colaVoz.splice(0).forEach((fragmento) => this.conservarTextoVoz(fragmento.texto));
+        });
+      }
+    });
 
     const parametro = this.route.snapshot.paramMap.get('id');
     this.idConversacion = parametro === null ? null : Number(parametro);
@@ -506,6 +568,12 @@ export class ConversacionSesion {
           }
         : actual,
     );
+    // Las intervenciones ya cargadas muestran el nombre nuevo sin recargar
+    this.intervenciones.update((lista) =>
+      lista.map((i) =>
+        i.id_participante === participante.id_participante ? { ...i, nombre_participante: participante.nombre } : i,
+      ),
+    );
   }
 
   // ---------- Intervenciones escritas (B4) ----------
@@ -536,15 +604,101 @@ export class ConversacionSesion {
   }
 
   enviarIntervencion(): void {
-    const actual = this.conversacion();
-    const idParticipante = this.idParticipanteHablante();
-    const texto = this.textoIntervencion().trim();
-    if (!actual || idParticipante === null || !this.puedeEnviar()) {
+    const hablante = this.idParticipanteHablante();
+    if (hablante === null || !this.puedeEnviar()) {
       return;
     }
+    this.enviar(this.textoIntervencion().trim(), hablante, false);
+  }
+
+  /** Cambia quién habla; si el microfono esta activo, se reinicia con el idioma del nuevo hablante */
+  seleccionarHablante(hablante: Hablante): void {
+    this.idParticipanteHablante.set(hablante);
+    if (this.reconocimiento.escuchando()) {
+      this.iniciarMicrofono();
+    }
+  }
+
+  alternarMicrofono(): void {
+    if (this.reconocimiento.escuchando()) {
+      this.reconocimiento.detener();
+      this.avisoMicrofono.set('');
+      return;
+    }
+    this.iniciarMicrofono();
+  }
+
+  private iniciarMicrofono(): void {
+    if (!this.sesionActiva()) {
+      return;
+    }
+    // El reconocimiento necesita el idioma de quien habla: con "No identificado" no se puede dictar
+    if (this.idParticipanteHablante() === NO_IDENTIFICADO) {
+      this.reconocimiento.detener();
+      this.avisoMicrofono.set('Para dictar, elige quién habla: el reconocimiento de voz necesita su idioma.');
+      return;
+    }
+    const hablante = this.participantesSesion().find((p) => p.id_participante === this.idParticipanteHablante());
+    if (!hablante) {
+      return;
+    }
+    this.avisoMicrofono.set('');
+    const error = this.reconocimiento.iniciar(hablante.codigo_idioma ?? '', {
+      alFinal: (texto) => this.encolarVoz(texto),
+      alError: (error, codigo) =>
+        this.avisoMicrofono.set(
+          error === 'desconocido' && codigo
+            ? `${MENSAJES_RECONOCIMIENTO.desconocido} (código: ${codigo})`
+            : MENSAJES_RECONOCIMIENTO[error],
+        ),
+      alResultado: () => this.avisoMicrofono.set(''),
+    });
+    if (error) {
+      this.avisoMicrofono.set(MENSAJES_RECONOCIMIENTO[error]);
+    }
+  }
+
+  /** Cada frase final dictada se envia como intervencion del hablante seleccionado, en orden */
+  private encolarVoz(texto: string): void {
+    const idParticipante = this.idParticipanteHablante();
+    if (typeof idParticipante !== 'number') {
+      return;
+    }
+    this.avisoMicrofono.set('');
+    this.colaVoz.push({ texto: texto.slice(0, LONGITUD_MAXIMA_INTERVENCION), idParticipante });
+    this.procesarColaVoz();
+  }
+
+  private procesarColaVoz(): void {
+    if (this.enviando() || !this.sesionActiva()) {
+      return;
+    }
+    const siguiente = this.colaVoz.shift();
+    if (siguiente) {
+      this.enviar(siguiente.texto, siguiente.idParticipante, true);
+    }
+  }
+
+  /** Lo dictado que no se pudo enviar se deja en la caja de texto para no perderlo */
+  private conservarTextoVoz(texto: string): void {
+    this.textoIntervencion.update((actual) =>
+      (actual.trim() ? `${actual.trim()} ${texto}` : texto).slice(0, LONGITUD_MAXIMA_INTERVENCION),
+    );
+  }
+
+  /** Envia una intervencion escrita (`desdeVoz` false) o dictada; solo la escrita limpia la caja al terminar */
+  private enviar(texto: string, hablante: Hablante, desdeVoz: boolean): void {
+    const actual = this.conversacion();
+    if (!actual) {
+      return;
+    }
+    const idParticipante = hablante === NO_IDENTIFICADO ? null : hablante;
     const temporal = this.crearTemporal(actual, idParticipante, texto);
     if (!temporal) {
       this.errorIntervencion.set('Selecciona quién habla.');
+      if (desdeVoz) {
+        this.conservarTextoVoz(texto);
+      }
       return;
     }
 
@@ -559,7 +713,9 @@ export class ConversacionSesion {
         next: (respuesta) => {
           this.quitarTemporal(temporal.id);
           this.agregar([respuesta.resultado]);
-          this.textoIntervencion.set('');
+          if (!desdeVoz) {
+            this.textoIntervencion.set('');
+          }
           this.terminarEnvio();
         },
         error: (error) => {
@@ -567,8 +723,11 @@ export class ConversacionSesion {
           this.errorIntervencion.set(this.extraerError(error, 'No se pudo enviar la intervención.'));
           if (error?.status === 0 || error?.status >= 500) {
             // El servidor pudo haberla guardado: se sincroniza antes de permitir otro envio
-            this.sincronizarTrasFallo(actual.id_conversacion, idParticipante, texto);
+            this.sincronizarTrasFallo(actual.id_conversacion, idParticipante, texto, desdeVoz);
             return;
+          }
+          if (desdeVoz) {
+            this.conservarTextoVoz(texto);
           }
           this.manejarErrorSesion(error, actual.id_conversacion);
           this.terminarEnvio();
@@ -614,6 +773,11 @@ export class ConversacionSesion {
       return;
     }
     this.avisoVoz.set('');
+    // Evita que el microfono transcriba la propia voz sintetizada
+    if (this.reconocimiento.escuchando()) {
+      this.reconocimiento.detener();
+      this.avisoMicrofono.set('Se detuvo el micrófono para no transcribir la voz reproducida.');
+    }
     const resultado = await this.vozService.reproducir(
       intervencion.texto_traducido,
       intervencion.codigo_idioma_destino ?? '',
@@ -639,7 +803,7 @@ export class ConversacionSesion {
    * Tras un fallo de red/servidor se piden las intervenciones posteriores a la ultima conocida.
    * Si la enviada aparece, se limpia la caja para evitar un duplicado al reenviar.
    */
-  private sincronizarTrasFallo(idConversacion: number, idParticipante: number, texto: string): void {
+  private sincronizarTrasFallo(idConversacion: number, idParticipante: number | null, texto: string, desdeVoz: boolean): void {
     const ultimoId = this.ultimoIdReal();
     this.conversacionService
       .listarIntervenciones(idConversacion, ultimoId)
@@ -649,25 +813,57 @@ export class ConversacionSesion {
           const nuevas = respuesta.resultado ?? [];
           this.agregar(nuevas);
           const registrada = nuevas.some(
-            (i) => i.id_participante === idParticipante && i.texto_original.trim() === texto,
+            (i) => (i.id_participante ?? null) === idParticipante && i.texto_original.trim() === texto,
           );
           if (registrada) {
-            this.textoIntervencion.set('');
+            if (!desdeVoz) {
+              this.textoIntervencion.set('');
+            }
             this.errorIntervencion.set('');
+          } else if (desdeVoz) {
+            this.conservarTextoVoz(texto);
           }
         },
         // Sin conexion tampoco se puede sincronizar: se conserva el texto y el error original
-        error: () => undefined,
+        error: () => {
+          if (desdeVoz) {
+            this.conservarTextoVoz(texto);
+          }
+        },
       });
   }
 
   private terminarEnvio(): void {
     this.enviando.set(false);
-    this.enfocarEntrada();
+    // Con el microfono activo el foco no se mueve; los fragmentos dictados pendientes se envian en orden
+    if (!this.reconocimiento.escuchando()) {
+      this.enfocarEntrada();
+    }
+    this.procesarColaVoz();
   }
 
   /** Mensaje optimista con los datos del participante; el destino es el idioma del otro participante */
-  private crearTemporal(actual: Conversacion, idParticipante: number, texto: string): IntervencionVista | null {
+  private crearTemporal(actual: Conversacion, idParticipante: number | null, texto: string): IntervencionVista | null {
+    if (idParticipante === null) {
+      // "No identificado": los idiomas los decide el backend al detectar; el mensaje queda neutro
+      const id = -++this.contadorTemporal;
+      return {
+        id,
+        id_intervencion: id,
+        id_conversacion: actual.id_conversacion,
+        id_participante: null,
+        nombre_participante: null,
+        orden_participante: null,
+        orden: Number.MAX_SAFE_INTEGER,
+        texto_original: texto,
+        texto_traducido: null,
+        id_idioma_origen: 0,
+        id_idioma_destino: 0,
+        estado: 'procesando',
+        fecha_creacion: new Date().toISOString(),
+        temporal: true,
+      };
+    }
     const habla = actual.participantes.find((p) => p.id_participante === idParticipante);
     const escucha = actual.participantes.find((p) => p.id_participante !== idParticipante);
     if (!habla || !escucha) {
@@ -790,7 +986,7 @@ export class ConversacionSesion {
     }
     // Por defecto habla el Participante 1; se conserva la eleccion si sigue siendo valida
     const hablante = this.idParticipanteHablante();
-    if (!conversacion.participantes.some((p) => p.id_participante === hablante)) {
+    if (hablante !== NO_IDENTIFICADO && !conversacion.participantes.some((p) => p.id_participante === hablante)) {
       const primero = [...conversacion.participantes].sort((a, b) => a.orden - b.orden)[0];
       this.idParticipanteHablante.set(primero?.id_participante ?? null);
     }

@@ -27,9 +27,12 @@ export interface Intervencion {
   fecha_actualizacion?: string | null;
 }
 
-/** El participante que habla se indica explicitamente; el usuario sale del token */
+/**
+ * El usuario sale del token. `id_participante` null = "No identificado" (HU-31):
+ * el backend detecta el idioma y lo exige igual a uno de los dos de la sesion.
+ */
 export interface CrearIntervencionSolicitud {
-  id_participante: number;
+  id_participante: number | null;
   texto: string;
 }
 

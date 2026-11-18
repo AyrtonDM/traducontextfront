@@ -24,7 +24,7 @@
   @if (ayudaVisible()) {
     <aside class="info-panel">
       <i class="fa fa-info-circle" aria-hidden="true"></i>
-      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje. La captura de voz y el asistente se habilitarán en las próximas etapas.</span>
+      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje. También puedes pulsar el <strong>micrófono</strong> y hablar: verás la transcripción mientras hablas y cada frase se enviará como intervención de quien esté seleccionado. El asistente se habilitará en una próxima etapa.</span>
     </aside>
   }
 
@@ -170,18 +170,22 @@
             <ol #listaMensajes class="mensajes-lista" aria-label="Intervenciones de la conversación" aria-live="polite">
               @for (intervencion of intervenciones(); track intervencion.id) {
                 <li
-                  [class]="'mensaje participante-' + (intervencion.orden_participante ?? 1)"
+                  [class]="'mensaje ' + (intervencion.orden_participante ? 'participante-' + intervencion.orden_participante : 'participante-ninguno')"
                   [class.mensaje-error]="intervencion.estado === 'error'"
                   [attr.aria-busy]="intervencion.estado === 'procesando'"
                 >
                   <div class="mensaje-cabecera">
                     <span class="participante-punto" aria-hidden="true"></span>
-                    <span class="mensaje-autor">{{ intervencion.nombre_participante || 'Participante ' + (intervencion.orden_participante ?? '') }}</span>
-                    <span class="mensaje-idioma" [title]="(intervencion.nombre_idioma_origen || '') + ' → ' + (intervencion.nombre_idioma_destino || '')">
-                      {{ intervencion.codigo_idioma_origen || intervencion.nombre_idioma_origen }}
-                      <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
-                      {{ intervencion.codigo_idioma_destino || intervencion.nombre_idioma_destino }}
-                    </span>
+                    <span class="mensaje-autor">{{ intervencion.nombre_participante || (intervencion.orden_participante ? 'Participante ' + intervencion.orden_participante : 'No identificado') }}</span>
+                    @if (intervencion.codigo_idioma_origen || intervencion.nombre_idioma_origen) {
+                      <span class="mensaje-idioma" [title]="(intervencion.nombre_idioma_origen || '') + ' → ' + (intervencion.nombre_idioma_destino || '')">
+                        {{ intervencion.codigo_idioma_origen || intervencion.nombre_idioma_origen }}
+                        <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+                        {{ intervencion.codigo_idioma_destino || intervencion.nombre_idioma_destino }}
+                      </span>
+                    } @else {
+                      <span class="mensaje-idioma">Detectando idioma...</span>
+                    }
                   </div>
 
                   <p class="mensaje-original" [attr.lang]="intervencion.codigo_idioma_origen">{{ intervencion.texto_original }}</p>
@@ -252,14 +256,39 @@
                 [class.activo]="idParticipanteHablante() === participante.id_participante"
                 [attr.aria-pressed]="idParticipanteHablante() === participante.id_participante"
                 [disabled]="!sesionActiva() || enviando()"
-                (click)="idParticipanteHablante.set(participante.id_participante)"
+                (click)="seleccionarHablante(participante.id_participante)"
               >
                 <span class="participante-punto" aria-hidden="true"></span>
                 {{ participante.nombre }}
                 <span class="participante-idioma">{{ participante.codigo_idioma || participante.nombre_idioma }}</span>
               </button>
             }
+            @if (participantesSesion().length > 0) {
+              <button
+                type="button"
+                class="btn-hablante participante-ninguno"
+                [class.activo]="idParticipanteHablante() === noIdentificado"
+                [attr.aria-pressed]="idParticipanteHablante() === noIdentificado"
+                [disabled]="!sesionActiva() || enviando()"
+                (click)="seleccionarHablante(noIdentificado)"
+                title="El idioma se detectará automáticamente y la intervención no se asignará a ningún participante"
+              >
+                <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+                No identificado
+              </button>
+            }
           </div>
+
+          @if (reconocimiento.escuchando()) {
+            <div class="transcripcion-en-curso" [class.con-voz]="reconocimiento.estadoAudio() === 'voz'" role="status" aria-live="polite">
+              <i class="fa fa-microphone" aria-hidden="true"></i>
+              @if (reconocimiento.textoParcial()) {
+                <span class="transcripcion-parcial">{{ reconocimiento.textoParcial() }}</span>
+              } @else {
+                <span class="transcripcion-espera">{{ etiquetaEstadoAudio() }}</span>
+              }
+            </div>
+          }
 
           <div class="entrada-fila">
             <textarea
@@ -279,6 +308,11 @@
               <span>{{ enviando() ? 'Enviando...' : 'Enviar' }}</span>
             </button>
           </div>
+
+          <!-- El aviso del microfono va en su propia linea para que ningun otro mensaje lo tape -->
+          @if (avisoMicrofono()) {
+            <p class="entrada-aviso aviso-microfono" role="alert"><i class="fa fa-microphone-slash" aria-hidden="true"></i> {{ avisoMicrofono() }}</p>
+          }
 
           <div class="entrada-pie">
             @if (errorIntervencion()) {
@@ -333,8 +367,17 @@
           </div>
 
           <div class="controles-centrales">
-            <button type="button" class="btn-control microfono" disabled aria-label="Micrófono (disponible próximamente)" title="La captura de voz estará disponible próximamente">
-              <i class="fa fa-microphone" aria-hidden="true"></i>
+            <button
+              type="button"
+              class="btn-control microfono"
+              [class.activo]="reconocimiento.escuchando()"
+              (click)="alternarMicrofono()"
+              [disabled]="!sesionActiva() || !reconocimiento.soportado"
+              [attr.aria-pressed]="reconocimiento.escuchando()"
+              [attr.aria-label]="reconocimiento.escuchando() ? 'Detener micrófono' : 'Activar micrófono'"
+              [title]="!reconocimiento.soportado ? 'Tu navegador no permite el reconocimiento de voz' : !sesionActiva() ? 'Disponible con la sesión activa' : reconocimiento.escuchando() ? 'Detener micrófono' : 'Hablar (transcripción en tiempo real)'"
+            >
+              <i class="fa" [class.fa-microphone]="!reconocimiento.escuchando()" [class.fa-microphone-slash]="reconocimiento.escuchando()" aria-hidden="true"></i>
             </button>
             <button
               type="button"
