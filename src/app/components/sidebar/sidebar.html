@@ -101,10 +101,16 @@
           <i class="fa fa-lock" aria-hidden="true"></i>
         </div>
 
-        <a class="nav-item" href="javascript:void(0)">
-          <i class="fa fa-chart-bar nav-icon" aria-hidden="true"></i>
-          <span>Dashboard</span>
-        </a>
+        @if (tienePermiso('ver_dashboard')) {
+          <a
+            class="nav-item"
+            routerLink="/administracion/dashboard"
+            routerLinkActive="active"
+          >
+            <i class="fa fa-bar-chart nav-icon" aria-hidden="true"></i>
+            <span>Dashboard</span>
+          </a>
+        }
 
         <a
           class="nav-item"
@@ -125,10 +131,16 @@
           <span>Suscripciones</span>
         </a>
 
-        <a class="nav-item" href="javascript:void(0)">
-          <i class="fa fa-chart-line nav-icon" aria-hidden="true"></i>
-          <span>Reportes</span>
-        </a>
+        @if (tienePermiso('generar_reportes')) {
+          <a
+            class="nav-item"
+            routerLink="/administracion/reportes"
+            routerLinkActive="active"
+          >
+            <i class="fa fa-table nav-icon" aria-hidden="true"></i>
+            <span>Reportes</span>
+          </a>
+        }
 
       </div>
     }

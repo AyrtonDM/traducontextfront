@@ -1,17 +1,20 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe, PercentPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { merge, of, Subject } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import {
   AlternativaTraduccion,
+  ConfiguracionTraduccionResultado,
   ContextoItem,
   EstadoRegion,
   ExplicacionExpresion,
   GuardarConfiguracionSolicitud,
   Idioma,
   RealizarTraduccionSolicitud,
+  SugerenciaTraduccion,
   TonoItem,
   Traduccion as TraduccionModelo,
   VarianteRegionalItem
@@ -23,7 +26,7 @@ import { VozService } from '../../../core/services/voz.service';
 
 @Component({
   selector: 'app-traduccion',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DatePipe, PercentPipe],
   templateUrl: './traduccion.html',
   styleUrl: './traduccion.css',
 })
@@ -47,17 +50,34 @@ export class Traduccion {
   verTodo = false;
   readonly cargando = signal(false);
   readonly guardandoConfiguracion = signal(false);
+  readonly restableciendoConfiguracion = signal(false);
   readonly mensaje = signal('');
   readonly listaAlternativas = signal<AlternativaTraduccion[]>([]);
   readonly listaModismos = signal<ExplicacionExpresion[]>([]);
+  // Historial (HU-42): la traduccion automatica no se guarda; se registra una vez al terminar
+  private pendienteHistorial: {
+    texto: string;
+    idiomaOrigen: string;
+    idiomaDestino: string;
+    idGlosario: number | null;
+  } | null = null;
+  private guardarAlRecibir = false;
+  readonly estadoHistorial = signal<'pendiente' | 'guardando' | 'guardado' | null>(null);
 
-  // Configuracion obtenida del endpoint o guardada previamente en base de datos
+  // Reutilizacion de traducciones (HU-44)
+  readonly sugerencias = signal<SugerenciaTraduccion[]>([]);
+  readonly idSugerenciaUsada = signal<number | null>(null);
+
+  // Preferencias guardadas del usuario (HU-33). Lo que se cambia en pantalla se aplica solo
+  // a la traduccion actual hasta que el usuario lo guarde como preferencia.
   configuracionGuardada: {
     id_contexto: number;
     id_tono: number;
     id_variante_regional: number | null;
     explicar_expresiones: boolean;
     generar_alternativas: boolean;
+    idioma_destino: string | null;
+    id_glosario: number | null;
   } | null = null;
   readonly idiomas = signal<Idioma[]>([]);
   readonly contextos = signal<ContextoItem[]>([]);
@@ -94,7 +114,11 @@ export class Traduccion {
     this.cargarGlosarios();
     this.cargarConfiguracionGuardada();
     this.configurarTraduccionAutomatica();
-    inject(DestroyRef).onDestroy(() => this.vozService.detener());
+    inject(DestroyRef).onDestroy(() => {
+      this.vozService.detener();
+      // Al salir de la pagina se guarda la ultima traduccion terminada
+      this.guardarEnHistorial();
+    });
   }
 
   /** Solo las variantes del idioma de destino actual; si no hay ninguna, la lista queda vacia */
@@ -154,8 +178,13 @@ export class Traduccion {
     const mismaVariante = (this.idVarianteSeleccionada ?? null) === (this.configuracionGuardada.id_variante_regional ?? null);
     const mismosModismos = this.modismos === this.configuracionGuardada.explicar_expresiones;
     const mismasAlternativas = this.alternativas === this.configuracionGuardada.generar_alternativas;
+    const mismoDestino = (this.destino || null) === this.configuracionGuardada.idioma_destino;
+    const mismoGlosario = (this.idGlosarioSeleccionado ?? null) === this.configuracionGuardada.id_glosario;
 
-    return !(mismoContexto && mismoTono && mismaVariante && mismosModismos && mismasAlternativas);
+    return !(
+      mismoContexto && mismoTono && mismaVariante && mismosModismos && mismasAlternativas &&
+      mismoDestino && mismoGlosario
+    );
   }
 
   private configurarTraduccionAutomatica(): void {
@@ -189,7 +218,14 @@ export class Traduccion {
           texto_origen: textoLimpio,
           texto: textoLimpio,
           idioma_origen: this.origen ? this.origen : null,
-          id_glosario: this.idGlosarioSeleccionado
+          id_glosario: this.idGlosarioSeleccionado,
+          guardar_en_historial: false,
+          // Valores puntuales (HU-33): no modifican las preferencias guardadas
+          ...(this.idContextoSeleccionado ? { id_contexto: this.idContextoSeleccionado } : {}),
+          id_tono: this.idTonoSeleccionado,
+          id_variante_regional: this.idVarianteSeleccionada,
+          explicar_expresiones: this.modismos,
+          generar_alternativas: this.alternativas
         };
 
         return this.traduccionService.traducir(solicitud).pipe(
@@ -218,8 +254,21 @@ export class Traduccion {
         this.terminosAplicados.set(respuesta.resultado.terminos_glosario_aplicados ?? []);
         this.estadoRegion.set(respuesta.resultado.estado_region ?? null);
         this.explicacionesProcesadas.set(respuesta.resultado.explicaciones_procesadas ?? false);
+        this.sugerencias.set(respuesta.resultado.sugerencias ?? []);
+        this.idSugerenciaUsada.set(null);
+        this.pendienteHistorial = {
+          texto: respuesta.resultado.texto_origen,
+          idiomaOrigen: respuesta.resultado.idioma_origen,
+          idiomaDestino: respuesta.resultado.idioma_destino,
+          idGlosario: respuesta.resultado.id_glosario ?? null,
+        };
+        this.estadoHistorial.set('pendiente');
+        if (this.guardarAlRecibir) {
+          this.guardarAlRecibir = false;
+          this.guardarEnHistorial();
+        }
         if (this.reproduccionAutomatica) {
-          this.escuchar();
+          this.reproducirResultado();
         }
       } else {
         this.listaAlternativas.set([]);
@@ -227,6 +276,7 @@ export class Traduccion {
         this.terminosAplicados.set([]);
         this.estadoRegion.set(null);
         this.explicacionesProcesadas.set(false);
+        this.sugerencias.set([]);
       }
     });
   }
@@ -336,7 +386,7 @@ export class Traduccion {
     if (!this.variantesDisponibles.some(v => v.id_variante_regional === this.idVarianteSeleccionada)) {
       this.idVarianteSeleccionada = null;
       this.avisoVarianteLimpiada.set(
-        'La región seleccionada no corresponde al idioma de destino actual. Guarda la configuración para aplicar el cambio.'
+        'La región seleccionada no corresponde al idioma de destino actual; se traducirá sin región.'
       );
     }
   }
@@ -344,6 +394,7 @@ export class Traduccion {
   onVarianteChange(idVariante: number | null): void {
     this.idVarianteSeleccionada = idVariante;
     this.avisoVarianteLimpiada.set('');
+    this.actualizarTexto(true);
   }
 
   onContextoChange(valor: any): void {
@@ -352,6 +403,22 @@ export class Traduccion {
       return;
     }
     this.idContextoSeleccionado = valor;
+    this.actualizarTexto(true);
+  }
+
+  onTonoChange(idTono: number | null): void {
+    this.idTonoSeleccionado = idTono;
+    this.actualizarTexto(true);
+  }
+
+  onAlternativasChange(valor: boolean): void {
+    this.alternativas = valor;
+    this.actualizarTexto(true);
+  }
+
+  onModismosChange(valor: boolean): void {
+    this.modismos = valor;
+    this.actualizarTexto(true);
   }
 
   abrirModalNuevoContexto(): void {
@@ -420,6 +487,7 @@ export class Traduccion {
   }
 
   limpiar(): void {
+    this.guardarEnHistorial();
     this.texto = '';
     this.resultado = '';
     this.listaAlternativas.set([]);
@@ -427,6 +495,9 @@ export class Traduccion {
     this.terminosAplicados.set([]);
     this.estadoRegion.set(null);
     this.explicacionesProcesadas.set(false);
+    this.sugerencias.set([]);
+    this.idSugerenciaUsada.set(null);
+    this.estadoHistorial.set(null);
     this.favorito = false;
     this.mensaje.set('');
     this.cargando.set(false);
@@ -445,7 +516,7 @@ export class Traduccion {
       return;
     }
 
-    const clave = `${this.origen}->${this.destino}:${this.idContextoSeleccionado}:${this.idTonoSeleccionado}:${this.idVarianteSeleccionada}:${this.idGlosarioSeleccionado}:${this.texto}`;
+    const clave = `${this.origen}->${this.destino}:${this.idContextoSeleccionado}:${this.idTonoSeleccionado}:${this.idVarianteSeleccionada}:${this.idGlosarioSeleccionado}:${this.alternativas}:${this.modismos}:${this.texto}`;
     if (inmediato) {
       this.immediateTrigger$.next(clave);
     } else {
@@ -458,6 +529,7 @@ export class Traduccion {
     if (!nuevoDestino) {
       return;
     }
+    this.guardarEnHistorial();
     const nuevoOrigen = this.destino;
     this.origen = nuevoOrigen;
     this.destino = nuevoDestino;
@@ -475,22 +547,7 @@ export class Traduccion {
     this.traduccionService.obtenerConfiguracion().subscribe({
       next: (resp) => {
         if (resp?.resultado) {
-          const res = resp.resultado;
-          this.idContextoSeleccionado = res.id_contexto;
-          this.idTonoSeleccionado = res.id_tono ?? null;
-          this.idVarianteSeleccionada = res.id_variante_regional ?? null;
-          this.modismos = res.explicar_expresiones ?? false;
-          this.alternativas = res.generar_alternativas ?? false;
-
-          // Se almacena la configuración de referencia
-          this.configuracionGuardada = {
-            id_contexto: this.idContextoSeleccionado,
-            id_tono: this.idTonoSeleccionado!,
-            id_variante_regional: this.idVarianteSeleccionada,
-            explicar_expresiones: this.modismos,
-            generar_alternativas: this.alternativas,
-          };
-          this.verificarVarianteValida();
+          this.aplicarPreferencias(resp.resultado);
         }
       },
       error: () => {
@@ -498,6 +555,35 @@ export class Traduccion {
         this.configuracionGuardada = null;
       }
     });
+  }
+
+  /** Carga las preferencias guardadas en el formulario y las toma como referencia (HU-33) */
+  private aplicarPreferencias(res: ConfiguracionTraduccionResultado): void {
+    this.idContextoSeleccionado = res.id_contexto;
+    this.idTonoSeleccionado = res.id_tono ?? null;
+    this.idVarianteSeleccionada = res.id_variante_regional ?? null;
+    this.modismos = res.explicar_expresiones ?? false;
+    this.alternativas = res.generar_alternativas ?? false;
+    if (res.codigo_idioma_destino) {
+      this.destino = res.codigo_idioma_destino;
+    }
+    this.idGlosarioSeleccionado = res.id_glosario ?? null;
+
+    this.configuracionGuardada = {
+      id_contexto: res.id_contexto,
+      id_tono: res.id_tono!,
+      id_variante_regional: this.idVarianteSeleccionada,
+      explicar_expresiones: this.modismos,
+      generar_alternativas: this.alternativas,
+      idioma_destino: res.codigo_idioma_destino ?? null,
+      id_glosario: this.idGlosarioSeleccionado,
+    };
+    this.avisoVarianteLimpiada.set('');
+    this.verificarVarianteValida();
+    // Solo se valida con los glosarios ya cargados; si aun no llegan, se valida al cargarlos
+    if (this.glosarios().length) {
+      this.verificarGlosarioValido();
+    }
   }
 
   guardarConfiguracion(): void {
@@ -519,32 +605,42 @@ export class Traduccion {
       id_variante_regional: this.idVarianteSeleccionada !== null ? this.idVarianteSeleccionada : null,
       explicar_expresiones: this.modismos,
       generar_alternativas: this.alternativas,
-      idioma_destino: this.destino || null
+      idioma_destino: this.destino || null,
+      id_glosario: this.idGlosarioSeleccionado
     };
 
     this.traduccionService.guardarConfiguracion(payload).subscribe({
       next: (respuesta) => {
         this.guardandoConfiguracion.set(false);
-        this.avisoVarianteLimpiada.set('');
-        this.mensaje.set(respuesta.mensaje || 'Configuracion guardada correctamente.');
-
-        // Actualizamos la configuración guardada con los nuevos valores para deshabilitar el botón
-        this.configuracionGuardada = {
-          id_contexto: this.idContextoSeleccionado!,
-          id_tono: this.idTonoSeleccionado!,
-          id_variante_regional: this.idVarianteSeleccionada !== null ? this.idVarianteSeleccionada : null,
-          explicar_expresiones: this.modismos,
-          generar_alternativas: this.alternativas,
-        };
-
-        if (this.texto.trim()) {
-          this.actualizarTexto(true);
-        }
+        this.mensaje.set(respuesta.mensaje || 'Preferencias guardadas correctamente.');
+        this.aplicarPreferencias(respuesta.resultado);
       },
       error: (error) => {
         this.guardandoConfiguracion.set(false);
         console.error('Error al guardar configuración:', error);
-        const detalle = error?.error?.detail || 'No se pudo guardar la configuración.';
+        const detalle = error?.error?.mensaje || error?.error?.detail || 'No se pudo guardar la configuración.';
+        this.mensaje.set(detalle);
+      }
+    });
+  }
+
+  restablecerConfiguracion(): void {
+    if (!confirm('¿Restablecer tus preferencias de traducción a los valores por defecto?')) {
+      return;
+    }
+    this.restableciendoConfiguracion.set(true);
+    this.mensaje.set('');
+
+    this.traduccionService.restablecerConfiguracion().subscribe({
+      next: (respuesta) => {
+        this.restableciendoConfiguracion.set(false);
+        this.mensaje.set(respuesta.mensaje || 'Preferencias restablecidas.');
+        this.aplicarPreferencias(respuesta.resultado);
+        this.actualizarTexto(true);
+      },
+      error: (error) => {
+        this.restableciendoConfiguracion.set(false);
+        const detalle = error?.error?.mensaje || error?.error?.detail || 'No se pudieron restablecer las preferencias.';
         this.mensaje.set(detalle);
       }
     });
@@ -552,13 +648,88 @@ export class Traduccion {
 
   seleccionarAlternativa(alt: AlternativaTraduccion): void {
     this.resultado = alt.traduccion;
+    this.guardarEnHistorial();
   }
 
+  /** HU-44: usa una traduccion anterior como resultado */
+  usarSugerencia(sugerencia: SugerenciaTraduccion): void {
+    this.resultado = sugerencia.texto_traducido;
+    this.idSugerenciaUsada.set(sugerencia.id_traduccion);
+    this.mensaje.set('Se usó una traducción anterior como resultado.');
+    this.guardarEnHistorial();
+  }
+
+  /** HU-44: descarta una sugerencia; no afecta al historial */
+  ignorarSugerencia(sugerencia: SugerenciaTraduccion): void {
+    this.sugerencias.update((lista) => lista.filter((s) => s.id_traduccion !== sugerencia.id_traduccion));
+  }
+
+  /** Boton Traducir o Ctrl+Enter: el usuario termino, se guarda en el historial */
   traducir(): void {
+    if (this.pendienteHistorial && this.pendienteHistorial.texto === this.texto.trim() && !this.cargando()) {
+      this.guardarEnHistorial();
+      return;
+    }
+    this.guardarAlRecibir = true;
     this.actualizarTexto(true);
   }
 
+  /** El boton "Guardar en historial" solo se habilita con una traduccion terminada sin guardar */
+  get puedeGuardarEnHistorial(): boolean {
+    return (
+      this.estadoHistorial() === 'pendiente' &&
+      !!this.pendienteHistorial &&
+      this.pendienteHistorial.texto === this.texto.trim() &&
+      !!this.resultado.trim() &&
+      !this.cargando()
+    );
+  }
+
+  /**
+   * Registra la ultima traduccion terminada en el historial (una sola vez). Se guarda el
+   * resultado que el usuario tiene en pantalla, que puede ser una alternativa o una sugerencia.
+   * `explicito` indica que lo pidio el usuario con el boton: entonces se informa el resultado.
+   */
+  guardarEnHistorial(explicito = false): void {
+    const pendiente = this.pendienteHistorial;
+    const resultado = this.resultado.trim();
+    if (!pendiente || !resultado || pendiente.texto !== this.texto.trim()) {
+      return;
+    }
+    this.pendienteHistorial = null;
+    this.estadoHistorial.set('guardando');
+    this.traduccionService.registrarEnHistorial({
+      texto_original: pendiente.texto,
+      texto_traducido: resultado,
+      idioma_origen: pendiente.idiomaOrigen,
+      idioma_destino: pendiente.idiomaDestino,
+      id_glosario: pendiente.idGlosario,
+    }).subscribe({
+      next: () => {
+        // Si mientras tanto llego otra traduccion, su estado ('pendiente') no se pisa
+        if (this.estadoHistorial() === 'guardando') {
+          this.estadoHistorial.set('guardado');
+        }
+        if (explicito) {
+          this.mensaje.set('Traducción guardada en el historial.');
+        }
+      },
+      error: (error) => {
+        console.error('No se pudo guardar la traducción en el historial:', error);
+        if (this.estadoHistorial() === 'guardando') {
+          // Se deja pendiente para poder reintentar con el boton
+          this.pendienteHistorial = pendiente;
+          this.estadoHistorial.set('pendiente');
+        }
+        if (explicito) {
+          this.mensaje.set(error?.error?.mensaje || 'No se pudo guardar la traducción en el historial.');
+        }
+      },
+    });
+  }
+
   async copiar(): Promise<void> {
+    this.guardarEnHistorial();
     try {
       await navigator.clipboard.writeText(this.resultado);
       this.mensaje.set('Traducción copiada.');
@@ -567,7 +738,13 @@ export class Traduccion {
     }
   }
 
+  /** Boton escuchar: el usuario termino, se guarda y se reproduce */
   async escuchar(): Promise<void> {
+    this.guardarEnHistorial();
+    await this.reproducirResultado();
+  }
+
+  private async reproducirResultado(): Promise<void> {
     this.avisoVoz.set('');
     const estado = await this.vozService.reproducir(this.resultado, this.destino);
     if (estado === 'sin_soporte') {

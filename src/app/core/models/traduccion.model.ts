@@ -116,6 +116,14 @@ export interface RealizarTraduccionSolicitud {
   texto?: string;
   idioma_origen?: string | null;
   id_glosario?: number | null;
+  /** false: no se guarda en el historial (traduccion automatica mientras se escribe) */
+  guardar_en_historial?: boolean;
+  // Valores puntuales (HU-33): se usan solo en esta traduccion, no modifican las preferencias
+  id_contexto?: number | null;
+  id_tono?: number | null;
+  id_variante_regional?: number | null;
+  explicar_expresiones?: boolean;
+  generar_alternativas?: boolean;
 }
 
 export interface AlternativaTraduccion {
@@ -130,6 +138,8 @@ export interface ExplicacionExpresion {
 }
 
 export interface RealizarTraduccionResultado {
+  /** Registro del historial creado (null si se tradujo sin guardar) */
+  id_traduccion?: number | null;
   texto_origen: string;
   idioma_origen: string;
   idioma_destino: string;
@@ -155,6 +165,33 @@ export interface RealizarTraduccionResultado {
   id_glosario?: number | null;
   nombre_glosario?: string | null;
   terminos_glosario_aplicados?: TerminoAplicado[];
+  /** HU-44: traducciones anteriores similares del historial (maximo 3, de mayor a menor similitud) */
+  sugerencias?: SugerenciaTraduccion[];
+}
+
+/** Registro en el historial de una traduccion terminada (POST /traducciones/historial) */
+export interface RegistrarTraduccionSolicitud {
+  texto_original: string;
+  /** El resultado que el usuario uso (puede ser una alternativa o una sugerencia) */
+  texto_traducido: string;
+  idioma_origen: string;
+  idioma_destino: string;
+  id_glosario?: number | null;
+}
+
+export interface RegistrarTraduccionRespuesta {
+  mensaje: string;
+  resultado: { id_traduccion: number; fecha_creacion: string };
+}
+
+/** Traduccion anterior similar del historial del usuario (HU-44) */
+export interface SugerenciaTraduccion {
+  id_traduccion: number;
+  texto_original: string;
+  texto_traducido: string;
+  fecha_creacion: string;
+  /** 0 a 1 */
+  similitud: number;
 }
 
 /** Estado de la localizacion cultural en una traduccion (HU-17) */
@@ -171,8 +208,10 @@ export interface GuardarConfiguracionSolicitud {
   id_variante_regional?: number | null;
   explicar_expresiones: boolean;
   generar_alternativas: boolean;
-  /** Solo para validar que la variante corresponda al idioma de destino actual (no se guarda) */
+  /** Idioma de destino preferido (HU-33); tambien valida la variante y el glosario */
   idioma_destino?: string | null;
+  /** Glosario predeterminado (HU-33) */
+  id_glosario?: number | null;
 }
 
 export interface ConfiguracionTraduccionResultado {
@@ -187,6 +226,11 @@ export interface ConfiguracionTraduccionResultado {
   nombre_contexto?: string | null;
   nombre_tono?: string | null;
   nombre_variante_regional?: string | null;
+  id_idioma_destino?: number | null;
+  codigo_idioma_destino?: string | null;
+  nombre_idioma_destino?: string | null;
+  id_glosario?: number | null;
+  nombre_glosario?: string | null;
 }
 
 export interface RespuestaConfiguracionTraduccion {

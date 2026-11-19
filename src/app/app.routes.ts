@@ -13,6 +13,8 @@ import { Autenticado } from './layouts/autenticado/autenticado';
 
 import { autenticacionGuard } from './core/guards/autenticacion.guard';
 import { Usuarios } from './views/administracion/usuarios/usuarios';
+import { Dashboard } from './views/administracion/dashboard/dashboard';
+import { Reportes } from './views/administracion/reportes/reportes';
 import { permisoGuard } from './core/guards/permiso.guard';
 import { Perfil } from './views/aplicacion/perfil/perfil';
 import { Glosarios } from './views/aplicacion/glosarios/glosarios';
@@ -105,7 +107,25 @@ export const routes: Routes = [
         data: {
           permiso: 'gestionar_usuarios'
         }
-      }
+      },
+
+      {
+        path: 'administracion/dashboard',
+        component: Dashboard,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'ver_dashboard'
+        }
+      },
+
+      {
+        path: 'administracion/reportes',
+        component: Reportes,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'generar_reportes'
+        }
+      }
 
     ]
   },

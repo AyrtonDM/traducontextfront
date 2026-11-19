@@ -395,6 +395,36 @@ export class ConversacionSesion {
       next: (respuesta) => this.entornos.set(respuesta.resultado ?? []),
       error: (error) => this.mensajeError.set(this.extraerError(error, 'No se pudieron cargar los entornos.')),
     });
+    if (this.esNueva) {
+      this.cargarPreferencias();
+    }
+  }
+
+  /**
+   * HU-33: una conversacion nueva parte de las preferencias guardadas (idioma de destino,
+   * contexto y tono). Solo se completan los campos que el usuario aun no eligio.
+   */
+  private cargarPreferencias(): void {
+    this.traduccionService.obtenerConfiguracion().subscribe({
+      next: (respuesta) => {
+        const pref = respuesta?.resultado;
+        if (!pref || !this.esNueva) {
+          return;
+        }
+        const f = this.formulario;
+        if (f.idIdiomaDestino === null && pref.id_idioma_destino) {
+          f.idIdiomaDestino = pref.id_idioma_destino;
+        }
+        if (f.idContexto === null && pref.id_contexto) {
+          f.idContexto = pref.id_contexto;
+        }
+        if (f.idTono === null && pref.id_tono) {
+          f.idTono = pref.id_tono;
+        }
+      },
+      // Sin preferencias guardadas (404) el formulario queda vacio, como antes
+      error: () => undefined,
+    });
   }
 
   private cargarConversacion(): void {

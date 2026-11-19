@@ -30,7 +30,7 @@
         </div>
       </div>
       <div class="text-box source-box">
-        <textarea id="texto-origen" maxlength="5000" [(ngModel)]="texto" (ngModelChange)="actualizarTexto()" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
+        <textarea id="texto-origen" maxlength="5000" [(ngModel)]="texto" (ngModelChange)="actualizarTexto()" (blur)="guardarEnHistorial()" (keydown.control.enter)="traducir()" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
         <button class="icon-button clear-button" type="button" aria-label="Borrar texto" (click)="limpiar()" [disabled]="!texto"><i class="fa fa-times" aria-hidden="true"></i></button>
         <div class="source-tools">
           <button class="icon-button" type="button" disabled aria-label="Importar documento (próximamente)" title="Importar documento: próximamente"><i class="fa fa-file-text-o" aria-hidden="true"></i></button>
@@ -65,6 +65,26 @@
           </label>
         </div>
       </div>
+      <div class="result-footer">
+          <button
+            class="guardar-historial"
+            type="button"
+            [class.guardado]="estadoHistorial() === 'guardado'"
+            [disabled]="!puedeGuardarEnHistorial"
+            [title]="estadoHistorial() === 'guardado' ? 'Esta traducción ya está en tu historial' : 'Guardar esta traducción en tu historial'"
+            (click)="guardarEnHistorial(true)"
+          >
+            <i
+              class="fa"
+              [class.fa-floppy-o]="estadoHistorial() !== 'guardado' && estadoHistorial() !== 'guardando'"
+              [class.fa-spinner]="estadoHistorial() === 'guardando'"
+              [class.fa-spin]="estadoHistorial() === 'guardando'"
+              [class.fa-check]="estadoHistorial() === 'guardado'"
+              aria-hidden="true"
+            ></i>
+            {{ estadoHistorial() === 'guardado' ? 'Guardado' : 'Guardar en historial' }}
+          </button>
+      </div>
       @if (avisoVoz()) {
         <p class="aviso-traduccion aviso-voz" role="status">
           <i class="fa fa-volume-off" aria-hidden="true"></i> {{ avisoVoz() }}
@@ -83,6 +103,40 @@
       }
     </div>
       </section>
+
+      @if (sugerencias().length > 0 && resultado) {
+        <section class="panel extra-panel sugerencias-panel" aria-labelledby="sugerencias-title">
+          <div class="extra-panel-header">
+            <h2 id="sugerencias-title" class="section-title">
+              <i class="fa fa-history" aria-hidden="true"></i> Traducciones anteriores similares
+            </h2>
+            <span class="extra-panel-hint">Reutilízalas para mantener la consistencia</span>
+          </div>
+          <ul class="sugerencias-lista">
+            @for (sugerencia of sugerencias(); track sugerencia.id_traduccion) {
+              <li class="sugerencia-card" [class.activa]="idSugerenciaUsada() === sugerencia.id_traduccion">
+                <div class="sugerencia-textos">
+                  <p class="sugerencia-original">{{ sugerencia.texto_original }}</p>
+                  <p class="sugerencia-traduccion"><i class="fa fa-long-arrow-right" aria-hidden="true"></i> {{ sugerencia.texto_traducido }}</p>
+                  <span class="sugerencia-meta">
+                    <time [attr.datetime]="sugerencia.fecha_creacion">{{ sugerencia.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}</time>
+                    · {{ sugerencia.similitud | percent: '1.0-0' }} de similitud
+                  </span>
+                </div>
+                <div class="sugerencia-acciones">
+                  <button type="button" class="sugerencia-usar" [disabled]="idSugerenciaUsada() === sugerencia.id_traduccion" (click)="usarSugerencia(sugerencia)">
+                    <i class="fa" [class.fa-check]="idSugerenciaUsada() === sugerencia.id_traduccion" [class.fa-arrow-up]="idSugerenciaUsada() !== sugerencia.id_traduccion" aria-hidden="true"></i>
+                    {{ idSugerenciaUsada() === sugerencia.id_traduccion ? 'En uso' : 'Usar' }}
+                  </button>
+                  <button type="button" class="icon-button" aria-label="Ignorar sugerencia" title="Ignorar" (click)="ignorarSugerencia(sugerencia)">
+                    <i class="fa fa-times" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
 
       @if (listaAlternativas().length > 0) {
         <section class="panel extra-panel alternativas-panel" aria-labelledby="alternativas-title">
@@ -190,7 +244,7 @@
             <label>Tono
               <span class="select-wrap">
                 <i class="fa fa-commenting-o" aria-hidden="true"></i>
-                <select [(ngModel)]="idTonoSeleccionado">
+                <select [ngModel]="idTonoSeleccionado" (ngModelChange)="onTonoChange($event)">
                   @for (t of tonos(); track t.id_tono) {
                     <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
                   }
@@ -235,11 +289,17 @@
         </div>
         <div class="options">
           <h3>Otras opciones</h3>
-          <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="alternativas"><span class="switch" aria-hidden="true"></span>Mostrar alternativas de traducción</label>
-          <label class="toggle"><input type="checkbox" role="switch" [(ngModel)]="modismos"><span class="switch" aria-hidden="true"></span>Explicar modismos y expresiones</label>
+          <label class="toggle"><input type="checkbox" role="switch" [ngModel]="alternativas" (ngModelChange)="onAlternativasChange($event)"><span class="switch" aria-hidden="true"></span>Mostrar alternativas de traducción</label>
+          <label class="toggle"><input type="checkbox" role="switch" [ngModel]="modismos" (ngModelChange)="onModismosChange($event)"><span class="switch" aria-hidden="true"></span>Explicar modismos y expresiones</label>
+          @if (hayCambiosEnConfiguracion) {
+            <small class="glosario-ayuda"><i class="fa fa-info-circle" aria-hidden="true"></i> Los cambios se aplican solo a esta traducción hasta que los guardes como preferencia.</small>
+          }
           <button class="translate-button" type="button" [disabled]="!hayCambiosEnConfiguracion || guardandoConfiguracion()" (click)="guardarConfiguracion()">
             <i class="fa" [class.fa-floppy-o]="!guardandoConfiguracion()" [class.fa-spinner]="guardandoConfiguracion()" [class.fa-spin]="guardandoConfiguracion()" aria-hidden="true"></i>
-            {{ guardandoConfiguracion() ? 'Guardando...' : 'Guardar' }}
+            {{ guardandoConfiguracion() ? 'Guardando...' : 'Guardar como preferencia' }}
+          </button>
+          <button class="text-button" type="button" [disabled]="restableciendoConfiguracion()" (click)="restablecerConfiguracion()">
+            <i class="fa fa-undo" aria-hidden="true"></i> Restablecer valores por defecto
           </button>
         </div>
       </div>

@@ -82,6 +82,11 @@
 
   margin-top: 8px;
 
+  /* Ocupa el espacio libre y hace scroll propio, para que la seccion del usuario
+     (con "Cerrar sesion") siempre quede visible aunque haya muchas opciones */
+  flex: 1 1 auto;
+  min-height: 0;
+
   overflow-y: auto;
   overflow-x: hidden;
 

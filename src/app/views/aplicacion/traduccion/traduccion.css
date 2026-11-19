@@ -402,3 +402,26 @@ textarea::placeholder { color: var(--color-texto-secundario); opacity: .8; }
   font-weight: 600;
 }
 
+/* Reutilizacion de traducciones (HU-44) */
+.sugerencias-lista { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sugerencia-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-primario) 14%, var(--color-fondo)); border-radius: var(--radio-medio); background: var(--color-fondo); transition: border-color .2s, background .2s; }
+.sugerencia-card.activa { border-color: var(--color-primario); background: color-mix(in srgb, var(--color-primario) 6%, var(--color-fondo)); }
+.sugerencia-textos { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sugerencia-original { margin: 0; color: var(--color-texto-secundario); font-size: 13px; overflow-wrap: anywhere; }
+.sugerencia-traduccion { margin: 0; color: var(--color-texto); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.sugerencia-traduccion i { margin-right: 4px; color: var(--color-primario); }
+.sugerencia-meta { color: var(--color-texto-secundario); font-size: 12px; }
+.sugerencia-acciones { display: flex; flex-shrink: 0; align-items: center; gap: 6px; }
+.sugerencia-usar { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border: 0; border-radius: var(--radio-medio); background: var(--color-primario); color: var(--color-texto-claro); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sugerencia-usar:disabled { opacity: .6; cursor: default; }
+@media (max-width: 560px) {
+  .sugerencia-card { flex-direction: column; align-items: stretch; }
+  .sugerencia-acciones { justify-content: flex-end; }
+}
+
+/* Guardar la traduccion terminada en el historial (HU-42) */
+.result-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+.guardar-historial { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--color-primario) 25%, var(--color-fondo)); border-radius: var(--radio-medio); background: var(--color-fondo); color: var(--color-primario); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s, opacity .2s; }
+.guardar-historial:not(:disabled):hover { background: color-mix(in srgb, var(--color-primario) 8%, var(--color-fondo)); }
+.guardar-historial:disabled { opacity: .55; cursor: default; }
+.guardar-historial.guardado { border-color: color-mix(in srgb, var(--color-exito, #16a34a) 40%, var(--color-fondo)); color: var(--color-exito, #16a34a); opacity: 1; }

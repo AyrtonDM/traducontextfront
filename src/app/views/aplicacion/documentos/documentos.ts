@@ -11,6 +11,7 @@ import {
   TraducirDocumentoSolicitud,
 } from '../../../core/models/documentos.model';
 import {
+  ConfiguracionTraduccionResultado,
   ContextoItem,
   GuardarConfiguracionSolicitud,
   Idioma,
@@ -58,6 +59,8 @@ export class Documentos implements OnInit {
     id_tono: number;
     id_variante_regional: number | null;
   } | null = null;
+  // Preferencias completas del usuario (HU-33): idioma de destino y glosario predeterminados
+  private preferencias: ConfiguracionTraduccionResultado | null = null;
 
   // Modal nuevo contexto
   readonly modalNuevoContextoAbierto = signal(false);
@@ -135,7 +138,7 @@ export class Documentos implements OnInit {
           id_glosario_seleccionado: null,
           traduciendo: false,
         }));
-        this.documentosCargados.set(lista);
+        this.documentosCargados.set(this.aplicarPreferenciasADocumentos(lista));
       },
       error: (err) => {
         this.cargandoCargados.set(false);
@@ -165,8 +168,34 @@ export class Documentos implements OnInit {
 
   private cargarGlosarios(): void {
     this.glosarioService.listar().subscribe({
-      next: (resp) => this.glosarios.set(resp.resultado || []),
+      next: (resp) => {
+        this.glosarios.set(resp.resultado || []);
+        // Ya con los glosarios cargados se descarta el preferido si no aplica al par de idiomas
+        this.documentosCargados.update(lista => lista.map(doc => {
+          this.validarGlosarioDocumento(doc);
+          return doc;
+        }));
+      },
       error: (err) => console.error('Error al cargar glosarios:', err)
+    });
+  }
+
+  /** Precarga en cada documento el idioma de destino y el glosario preferidos (HU-33) */
+  private aplicarPreferenciasADocumentos(lista: DocumentoCargado[]): DocumentoCargado[] {
+    const pref = this.preferencias;
+    if (!pref) {
+      return lista;
+    }
+    return lista.map(doc => {
+      const actualizado: DocumentoCargado = {
+        ...doc,
+        idioma_destino_seleccionado: pref.codigo_idioma_destino || doc.idioma_destino_seleccionado,
+        id_glosario_seleccionado: pref.id_glosario ?? null,
+      };
+      if (this.glosarios().length) {
+        this.validarGlosarioDocumento(actualizado);
+      }
+      return actualizado;
     });
   }
 
@@ -239,6 +268,8 @@ export class Documentos implements OnInit {
       next: (resp) => {
         if (resp?.resultado) {
           const res = resp.resultado;
+          this.preferencias = res;
+          this.documentosCargados.update(lista => this.aplicarPreferenciasADocumentos(lista));
           this.idContextoSeleccionado = res.id_contexto;
           this.idTonoSeleccionado = res.id_tono ?? null;
           this.idVarianteSeleccionada = res.id_variante_regional ?? null;
@@ -271,14 +302,18 @@ export class Documentos implements OnInit {
       id_contexto: this.idContextoSeleccionado,
       id_tono: this.idTonoSeleccionado,
       id_variante_regional: this.idVarianteSeleccionada !== null ? this.idVarianteSeleccionada : null,
-      explicar_expresiones: false,
-      generar_alternativas: false,
+      // Se conservan las demas preferencias guardadas (HU-33)
+      explicar_expresiones: this.preferencias?.explicar_expresiones ?? false,
+      generar_alternativas: this.preferencias?.generar_alternativas ?? false,
+      idioma_destino: this.preferencias?.codigo_idioma_destino ?? null,
+      id_glosario: this.preferencias?.id_glosario ?? null,
     };
 
     this.traduccionService.guardarConfiguracion(payload).subscribe({
       next: (respuesta) => {
         this.guardandoConfiguracion.set(false);
         this.mostrarMensaje(respuesta.mensaje || 'Configuración guardada correctamente.', 'exito');
+        this.preferencias = respuesta.resultado;
 
         this.configuracionGuardada = {
           id_contexto: this.idContextoSeleccionado!,

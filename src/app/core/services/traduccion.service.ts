@@ -10,6 +10,8 @@ import {
   IdiomasRespuesta,
   RealizarTraduccionRespuesta,
   RealizarTraduccionSolicitud,
+  RegistrarTraduccionRespuesta,
+  RegistrarTraduccionSolicitud,
   RespuestaConfiguracionTraduccion,
   TonosRespuesta,
   VariantesRegionalesRespuesta
@@ -49,11 +51,21 @@ export class TraduccionService {
     return this.http.post<RealizarTraduccionRespuesta>(`${this.apiUrl}/traducciones`, solicitud);
   }
 
+  /** Guarda en el historial una traduccion terminada, sin volver a traducir */
+  registrarEnHistorial(datos: RegistrarTraduccionSolicitud): Observable<RegistrarTraduccionRespuesta> {
+    return this.http.post<RegistrarTraduccionRespuesta>(`${this.apiUrl}/traducciones/historial`, datos);
+  }
+
   guardarConfiguracion(datos: GuardarConfiguracionSolicitud): Observable<RespuestaConfiguracionTraduccion> {
     return this.http.post<RespuestaConfiguracionTraduccion>(`${this.apiUrl}/configuracion-traduccion`, datos);
   }
 
   obtenerConfiguracion(): Observable<RespuestaConfiguracionTraduccion> {
     return this.http.get<RespuestaConfiguracionTraduccion>(`${this.apiUrl}/configuracion-traduccion`);
+  }
+
+  /** Restablece las preferencias de traduccion a los valores por defecto (HU-33) */
+  restablecerConfiguracion(): Observable<RespuestaConfiguracionTraduccion> {
+    return this.http.delete<RespuestaConfiguracionTraduccion>(`${this.apiUrl}/configuracion-traduccion`);
   }
 }
