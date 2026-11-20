@@ -5,6 +5,7 @@ import { DocumentosService } from '../../../core/services/documentos.service';
 import { TraduccionService } from '../../../core/services/traduccion.service';
 import { GlosarioService } from '../../../core/services/glosario.service';
 import { GlosarioResumen } from '../../../core/models/glosario.model';
+import { AsistenteGuiaService } from '../../../core/services/asistente-guia.service';
 import {
   DocumentoCargado,
   DocumentoTraducido,
@@ -30,6 +31,7 @@ export class Documentos implements OnInit {
   private readonly documentosService = inject(DocumentosService);
   private readonly traduccionService = inject(TraduccionService);
   private readonly glosarioService = inject(GlosarioService);
+  private readonly asistenteGuiaService = inject(AsistenteGuiaService);
 
   // Listas de datos
   readonly documentosCargados = signal<DocumentoCargado[]>([]);
@@ -46,10 +48,14 @@ export class Documentos implements OnInit {
   readonly subiendo = signal(false);
   readonly isDragging = signal(false);
   ayuda = false;
+
+  abrirAyudaGuia(): void {
+    this.asistenteGuiaService.abrirAsistente('緾髆o funciona la traducci髇 de documentos?');
+  }
   readonly mensaje = signal<string | null>(null);
   readonly tipoMensaje = signal<'exito' | 'error' | 'info'>('info');
 
-  // Configuraci贸n de traducci贸n
+  // Configuraci髇 de traducci髇
   idContextoSeleccionado: number | null = null;
   idTonoSeleccionado: number | null = null;
   idVarianteSeleccionada: number | null = null;
@@ -312,7 +318,7 @@ export class Documentos implements OnInit {
     this.traduccionService.guardarConfiguracion(payload).subscribe({
       next: (respuesta) => {
         this.guardandoConfiguracion.set(false);
-        this.mostrarMensaje(respuesta.mensaje || 'Configuraci贸n guardada correctamente.', 'exito');
+        this.mostrarMensaje(respuesta.mensaje || 'Configuraci髇 guardada correctamente.', 'exito');
         this.preferencias = respuesta.resultado;
 
         this.configuracionGuardada = {
@@ -323,8 +329,8 @@ export class Documentos implements OnInit {
       },
       error: (error) => {
         this.guardandoConfiguracion.set(false);
-        console.error('Error al guardar configuraci贸n:', error);
-        const detalle = error?.error?.detail || error?.error?.mensaje || 'No se pudo guardar la configuraci贸n.';
+        console.error('Error al guardar configuraci髇:', error);
+        const detalle = error?.error?.detail || error?.error?.mensaje || 'No se pudo guardar la configuraci髇.';
         this.mostrarMensaje(detalle, 'error');
       }
     });
@@ -374,7 +380,7 @@ export class Documentos implements OnInit {
 
     const maxBytes = 20 * 1024 * 1024;
     if (file.size > maxBytes) {
-      this.mostrarMensaje('El tama帽o del archivo supera el l铆mite permitido de 20 MB.', 'error');
+      this.mostrarMensaje('El tama駉 del archivo supera el l韒ite permitido de 20 MB.', 'error');
       return;
     }
 
@@ -394,7 +400,7 @@ export class Documentos implements OnInit {
     });
   }
 
-  // Traducci贸n de documentos
+  // Traducci髇 de documentos
   traducirDocumento(doc: DocumentoCargado): void {
     if (doc.traduciendo) return;
     doc.traduciendo = true;
@@ -442,7 +448,7 @@ export class Documentos implements OnInit {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(blobUrl);
-        this.mostrarMensaje('Descarga iniciada con 茅xito.', 'exito');
+        this.mostrarMensaje('Descarga iniciada con 閤ito.', 'exito');
       },
       error: (err) => {
         doc.descargando = false;
@@ -452,7 +458,7 @@ export class Documentos implements OnInit {
     });
   }
 
-  // Acciones de eliminaci贸n con backend
+  // Acciones de eliminaci髇 con backend
   eliminarDocumentoCargado(doc: DocumentoCargado): void {
     if (doc.eliminando) return;
     doc.eliminando = true;
@@ -460,7 +466,7 @@ export class Documentos implements OnInit {
     this.documentosService.eliminarDocumentoCargado(doc.id_documento).subscribe({
       next: (resp) => {
         doc.eliminando = false;
-        this.mostrarMensaje(resp.mensaje || 'Documento original y sus archivos f铆sicos eliminados correctamente.', 'exito');
+        this.mostrarMensaje(resp.mensaje || 'Documento original y sus archivos f韘icos eliminados correctamente.', 'exito');
         this.documentosCargados.update(lista =>
           lista.filter(d => d.id_documento !== doc.id_documento)
         );
@@ -481,7 +487,7 @@ export class Documentos implements OnInit {
     this.documentosService.eliminarDocumentoTraducido(doc.id_traduccion_documento).subscribe({
       next: (resp) => {
         doc.eliminando = false;
-        this.mostrarMensaje(resp.mensaje || 'Documento traducido y su archivo f铆sico eliminados correctamente.', 'exito');
+        this.mostrarMensaje(resp.mensaje || 'Documento traducido y su archivo f韘ico eliminados correctamente.', 'exito');
         this.documentosTraducidos.update(lista =>
           lista.filter(d => d.id_traduccion_documento !== doc.id_traduccion_documento)
         );
@@ -531,7 +537,7 @@ export class Documentos implements OnInit {
       return;
     }
     if (!descripcion) {
-      this.errorModal.set('La descripci贸n del contexto es obligatoria.');
+      this.errorModal.set('La descripci髇 del contexto es obligatoria.');
       return;
     }
 
@@ -559,7 +565,7 @@ export class Documentos implements OnInit {
     });
   }
 
-  // M茅todos auxiliares de formato y tipos
+  // M閠odos auxiliares de formato y tipos
   esWord(extension?: string, nombre?: string): boolean {
     const ext = (extension || (nombre ? nombre.split('.').pop() : '') || '').toLowerCase();
     return ext === 'docx';

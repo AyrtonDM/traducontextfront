@@ -1,31 +1,30 @@
 <main class="documentos-page">
   <!-- BREADCRUMB -->
-  <nav class="breadcrumb" aria-label="Ruta de navegaciÃ³n">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
     <a routerLink="/inicio">Inicio</a>
     <i class="fa fa-angle-right" aria-hidden="true"></i>
     <span aria-current="page">Documentos</span>
   </nav>
 
-  <!-- ENCABEZADO DE PÃGINA -->
+  <!-- ENCABEZADO DE PÁGINA -->
   <header class="page-header">
     <div class="page-title">
       <div class="header-icon-box" aria-hidden="true">
         <i class="fa fa-file-text"></i>
       </div>
       <div>
-        <h1>TraducciÃ³n de documentos</h1>
+        <h1>Traducción de documentos</h1>
         <p>Carga, traduce y descarga tus documentos manteniendo su formato.</p>
       </div>
     </div>
     <button
       class="help-button"
       type="button"
-      (click)="ayuda = !ayuda"
-      [attr.aria-expanded]="ayuda"
-      aria-controls="panel-ayuda"
+      (click)="abrirAyudaGuia()"
+      aria-label="Abrir Asistente Guía de TraduContext"
     >
       <i class="fa fa-question-circle" aria-hidden="true"></i>
-      Â¿CÃ³mo funciona?
+      ¿Cómo funciona?
     </button>
   </header>
 
@@ -38,7 +37,7 @@
           <strong>Flujo de trabajo para documentos:</strong>
           <ol>
             <li>Arrastra o selecciona tus archivos en formato <strong>PDF (.pdf)</strong>, <strong>Word (.docx)</strong> o <strong>Excel (.xlsx)</strong> hasta 20 MB.</li>
-            <li>Ajusta el <strong>Contexto</strong>, <strong>Tono</strong> y <strong>LocalizaciÃ³n cultural</strong> en el panel derecho.</li>
+            <li>Ajusta el <strong>Contexto</strong>, <strong>Tono</strong> y <strong>Localización cultural</strong> en el panel derecho.</li>
             <li>Selecciona los idiomas en la tabla y presiona <strong>Traducir</strong> para generar el documento manteniendo su estructura.</li>
             <li>Descarga el archivo resultante directamente desde la tabla de documentos traducidos.</li>
           </ol>
@@ -66,7 +65,7 @@
         ></i>
         <span>{{ mensaje() }}</span>
       </div>
-      <button type="button" class="alert-close" aria-label="Cerrar notificaciÃ³n" (click)="mensaje.set(null)">
+      <button type="button" class="alert-close" aria-label="Cerrar notificación" (click)="mensaje.set(null)">
         <i class="fa fa-times" aria-hidden="true"></i>
       </button>
     </div>
@@ -87,7 +86,7 @@
           <div class="cloud-icon-wrap" aria-hidden="true">
             <i class="fa fa-cloud-upload"></i>
           </div>
-          <h2 class="dropzone-title">Arrastra y suelta tu documento aquÃ­</h2>
+          <h2 class="dropzone-title">Arrastra y suelta tu documento aquí</h2>
           <p class="dropzone-sub">o selecciona un archivo desde tu dispositivo</p>
 
           <button
@@ -109,7 +108,7 @@
           />
 
           <p class="dropzone-hint">
-            Formatos permitidos: PDF (.pdf), Word (.docx), Excel (.xlsx) &nbsp;|&nbsp; TamaÃ±o mÃ¡ximo: 20 MB
+            Formatos permitidos: PDF (.pdf), Word (.docx), Excel (.xlsx) &nbsp;|&nbsp; Tamaño máximo: 20 MB
           </p>
         </div>
       </section>
@@ -140,7 +139,7 @@
                 </th>
                 <th>Nombre del documento</th>
                 <th>Tipo</th>
-                <th>TamaÃ±o</th>
+                <th>Tamaño</th>
                 <th>Fecha de carga</th>
                 <th>Idioma origen</th>
                 <th>Idioma destino</th>
@@ -153,7 +152,7 @@
                 <tr>
                   <td colspan="9" class="td-empty">
                     <i class="fa fa-folder-o empty-icon" aria-hidden="true"></i>
-                    <span>No hay documentos cargados todavÃ­a. Sube un archivo en la secciÃ³n superior para comenzar.</span>
+                    <span>No hay documentos cargados todavía. Sube un archivo en la sección superior para comenzar.</span>
                   </td>
                 </tr>
               } @else {
@@ -314,8 +313,8 @@
                 </th>
                 <th>Nombre del documento</th>
                 <th>Tipo</th>
-                <th>TamaÃ±o</th>
-                <th>Fecha de traducciÃ³n</th>
+                <th>Tamaño</th>
+                <th>Fecha de traducción</th>
                 <th>Idioma origen</th>
                 <th>Idioma destino</th>
                 <th>Estado</th>
@@ -327,7 +326,7 @@
                 <tr>
                   <td colspan="9" class="td-empty">
                     <i class="fa fa-file-text-o empty-icon" aria-hidden="true"></i>
-                    <span>No hay documentos traducidos disponibles todavÃ­a. Traduce un documento cargado para verlo aquÃ­.</span>
+                    <span>No hay documentos traducidos disponibles todavía. Traduce un documento cargado para verlo aquí.</span>
                   </td>
                 </tr>
               } @else {
@@ -374,8 +373,8 @@
                     </td>
                     <td class="td-tamano">{{ formatearTamano('1.2 MB') }}</td>
                     <td class="td-fecha">{{ formatearFecha(doc.fecha) }}</td>
-                    <td class="td-idioma-text">{{ doc.nombre_idioma_origen || 'EspaÃ±ol' }}</td>
-                    <td class="td-idioma-text">{{ doc.nombre_idioma_destino || 'InglÃ©s' }}</td>
+                    <td class="td-idioma-text">{{ doc.nombre_idioma_origen || 'Español' }}</td>
+                    <td class="td-idioma-text">{{ doc.nombre_idioma_destino || 'Inglés' }}</td>
                     <td>
                       <span class="badge-estado badge-completado">
                         <i class="fa fa-check-circle" aria-hidden="true"></i> Completado
@@ -425,12 +424,12 @@
       </section>
     </div>
 
-    <!-- COLUMNA LATERAL: CONFIGURACIÃ“N DE TRADUCCIÃ“N -->
+    <!-- COLUMNA LATERAL: CONFIGURACIÓN DE TRADUCCIÓN -->
     <aside class="panel configuration-card" aria-labelledby="config-title">
       <div class="config-header">
         <h2 id="config-title" class="section-title">
           <i class="fa fa-cog config-gear-icon" aria-hidden="true"></i>
-          ConfiguraciÃ³n de traducciÃ³n
+          Configuración de traducción
         </h2>
       </div>
 
@@ -443,7 +442,7 @@
             <select
               [ngModel]="idContextoSeleccionado"
               (ngModelChange)="onContextoChange($event)"
-              aria-label="Contexto o escenario de traducciÃ³n"
+              aria-label="Contexto o escenario de traducción"
             >
               @for (ctx of contextos(); track ctx.id_contexto) {
                 <option [ngValue]="ctx.id_contexto">{{ ctx.nombre }}</option>
@@ -458,7 +457,7 @@
           Tono
           <div class="field-select-wrap">
             <i class="fa fa-commenting-o select-icon" aria-hidden="true"></i>
-            <select [(ngModel)]="idTonoSeleccionado" aria-label="Tono de traducciÃ³n">
+            <select [(ngModel)]="idTonoSeleccionado" aria-label="Tono de traducción">
               @for (t of tonos(); track t.id_tono) {
                 <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
               }
@@ -466,12 +465,12 @@
           </div>
         </label>
 
-        <!-- LocalizaciÃ³n cultural -->
+        <!-- Localización cultural -->
         <label class="field-label">
-          LocalizaciÃ³n cultural
+          Localización cultural
           <div class="field-select-wrap">
             <i class="fa fa-map-marker select-icon" aria-hidden="true"></i>
-            <select [(ngModel)]="idVarianteSeleccionada" aria-label="LocalizaciÃ³n cultural">
+            <select [(ngModel)]="idVarianteSeleccionada" aria-label="Localización cultural">
               <option [ngValue]="null">Sin preferencia</option>
               @for (v of variantesDisponibles; track v.id_variante_regional) {
                 <option [ngValue]="v.id_variante_regional">{{ v.nombre }}</option>
@@ -480,7 +479,7 @@
           </div>
         </label>
 
-        <!-- BotÃ³n Guardar configuraciÃ³n -->
+        <!-- Botón Guardar configuración -->
         <button
           type="button"
           class="btn-guardar-config"
@@ -533,13 +532,13 @@
               type="text"
               maxlength="100"
               [(ngModel)]="nombreNuevoContexto"
-              placeholder="Ej. TÃ©cnico, Legal, MÃ©dico, Financiero..."
+              placeholder="Ej. Técnico, Legal, Médico, Financiero..."
               [disabled]="guardandoContexto()"
             />
           </div>
 
           <div class="modal-field">
-            <label for="descripcion-contexto">DescripciÃ³n <span class="required">*</span></label>
+            <label for="descripcion-contexto">Descripción <span class="required">*</span></label>
             <textarea
               id="descripcion-contexto"
               maxlength="500"
