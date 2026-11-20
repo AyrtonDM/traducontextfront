@@ -1,0 +1,341 @@
+<main class="sesion-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><a routerLink="/integraciones">Integraciones</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">{{ esNueva ? 'Nueva sesión' : 'Sesión de reunión' }}</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-video-camera" aria-hidden="true"></i>
+      <div>
+        <h1>Traducción de reunión</h1>
+        <p>Traduce en tiempo real tu reunión de Google Meet o Zoom, en paralelo a la ventana de la llamada.</p>
+      </div>
+    </div>
+    <a class="btn-secundario" routerLink="/integraciones"><i class="fa fa-arrow-left" aria-hidden="true"></i> Volver</a>
+  </header>
+
+  @if (error()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ error() }}</p>
+  }
+  @if (mensaje()) {
+    <p class="estado-mensaje exito pagina-mensaje" role="status"><i class="fa fa-check-circle" aria-hidden="true"></i> {{ mensaje() }}</p>
+  }
+
+  @if (cargando()) {
+    <p class="estado-mensaje"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando sesión...</p>
+  } @else if (!esNueva && !sesion()) {
+    <section class="panel vacio">
+      <i class="fa fa-video-camera" aria-hidden="true"></i>
+      <p>La sesión no está disponible.</p>
+      <a class="btn-primario" routerLink="/integraciones">Ir a Integraciones</a>
+    </section>
+  } @else {
+    <div class="sesion-layout">
+      <!-- COLUMNA IZQUIERDA: CONFIGURACION (HU-36) Y PARTICIPANTES (HU-40) -->
+      <div class="columna">
+        <form class="panel configuracion" aria-labelledby="titulo-config" (ngSubmit)="esNueva ? crear() : guardarCambios()">
+          <h2 id="titulo-config" class="section-title"><i class="fa fa-cog" aria-hidden="true"></i> Configuración</h2>
+
+          @if (esNueva && plataformasVinculadas().length === 0) {
+            <p class="aviso">No tienes plataformas vinculadas. <a routerLink="/integraciones">Vincula Google Meet o Zoom</a> para continuar.</p>
+          }
+
+          <label class="campo">Plataforma <span class="requerido">*</span>
+            <select name="plataforma" [(ngModel)]="formulario.plataforma" [disabled]="!esNueva || guardando()">
+              @if (esNueva) {
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (p of plataformasVinculadas(); track p.plataforma) {
+                  <option [ngValue]="p.plataforma">{{ p.nombre }}</option>
+                }
+              } @else {
+                <option [ngValue]="formulario.plataforma">{{ sesion()?.nombre_plataforma }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="campo">Enlace o ID de la reunión <span class="requerido">*</span>
+            <input name="enlace" type="text" maxlength="2000" [(ngModel)]="formulario.enlace" [disabled]="!edicionInicial || guardando()"
+              [placeholder]="formulario.plataforma === 'zoom' ? 'https://zoom.us/j/12345678901 o 123 4567 8901' : 'https://meet.google.com/abc-defg-hij'">
+            @if (sesion(); as s) {
+              <small class="campo-ayuda"><a [href]="s.url_reunion" target="_blank" rel="noopener">Abrir la reunión en otra pestaña <i class="fa fa-external-link" aria-hidden="true"></i></a></small>
+            }
+          </label>
+
+          <fieldset class="campo">
+            <legend>Idiomas de los participantes <span class="requerido">*</span></legend>
+            <div class="idiomas">
+              <select name="idiomaOrigen" aria-label="Primer idioma" [(ngModel)]="formulario.idIdiomaOrigen" [disabled]="!edicionInicial || guardando()">
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (i of idiomas(); track i.id) {
+                  <option [ngValue]="i.id" [disabled]="i.id === formulario.idIdiomaDestino">{{ i.nombre }}</option>
+                }
+              </select>
+              <button type="button" class="btn-icono" (click)="intercambiarIdiomas()" [disabled]="!edicionInicial || guardando()" aria-label="Intercambiar idiomas"><i class="fa fa-exchange" aria-hidden="true"></i></button>
+              <select name="idiomaDestino" aria-label="Segundo idioma" [(ngModel)]="formulario.idIdiomaDestino" [disabled]="!edicionInicial || guardando()">
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (i of idiomas(); track i.id) {
+                  <option [ngValue]="i.id" [disabled]="i.id === formulario.idIdiomaOrigen">{{ i.nombre }}</option>
+                }
+              </select>
+            </div>
+            <small class="campo-ayuda">Cada intervención se traduce al otro idioma.{{ edicionInicial ? '' : ' No se pueden cambiar con el servicio iniciado.' }}</small>
+          </fieldset>
+
+          <label class="campo">Entorno <span class="requerido">*</span>
+            <select name="entorno" [(ngModel)]="formulario.idEntorno" [disabled]="!configuracionEditable || guardando()">
+              <option [ngValue]="null" disabled>Selecciona</option>
+              @for (e of entornos(); track e.id_entorno) {
+                <option [ngValue]="e.id_entorno">{{ e.nombre }}</option>
+              }
+            </select>
+          </label>
+
+          <div class="dos-columnas">
+            <label class="campo">Contexto
+              <select name="contexto" [(ngModel)]="formulario.idContexto" [disabled]="!configuracionEditable || guardando()">
+                <option [ngValue]="null">Sin contexto</option>
+                @for (c of contextos(); track c.id_contexto) {
+                  <option [ngValue]="c.id_contexto">{{ c.nombre }}</option>
+                }
+              </select>
+            </label>
+            <label class="campo">Tono
+              <select name="tono" [(ngModel)]="formulario.idTono" [disabled]="!configuracionEditable || guardando()">
+                <option [ngValue]="null">Sin tono</option>
+                @for (t of tonos(); track t.id_tono) {
+                  <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <label class="campo">Glosario
+            <select name="glosario" [ngModel]="glosarioSeleccionado?.id_glosario ?? null" (ngModelChange)="formulario.idGlosario = $event" [disabled]="!configuracionEditable || guardando() || glosariosDisponibles.length === 0">
+              <option [ngValue]="null">Sin glosario</option>
+              @for (g of glosariosDisponibles; track g.id_glosario) {
+                <option [ngValue]="g.id_glosario">{{ g.nombre }} ({{ g.par_idiomas }})</option>
+              }
+            </select>
+            @if (glosarioSeleccionado; as g) {
+              <small class="campo-ayuda">Se aplica a las intervenciones {{ g.par_idiomas }}.</small>
+            }
+          </label>
+
+          <label class="campo">Descripción del contexto
+            <textarea name="descripcion" rows="2" maxlength="1000" [(ngModel)]="formulario.descripcion" [disabled]="!configuracionEditable || guardando()" placeholder="Ej.: reunión de seguimiento con el cliente sobre el presupuesto."></textarea>
+          </label>
+
+          @if (esNueva) {
+            <button type="submit" class="btn-primario" [disabled]="guardando() || plataformasVinculadas().length === 0">
+              <i class="fa" [class.fa-check]="!guardando()" [class.fa-spinner]="guardando()" [class.fa-spin]="guardando()" aria-hidden="true"></i> Configurar sesión
+            </button>
+          } @else if (hayCambios) {
+            <button type="submit" class="btn-primario" [disabled]="guardando()">
+              <i class="fa fa-floppy-o" aria-hidden="true"></i> Guardar cambios
+            </button>
+            @if (!edicionInicial) {
+              <small class="campo-ayuda">Se aplicarán a las intervenciones siguientes.</small>
+            }
+          }
+        </form>
+
+        @if (sesion(); as s) {
+          <section class="panel participantes" aria-labelledby="titulo-participantes">
+            <div class="cabecera-fila">
+              <h2 id="titulo-participantes" class="section-title"><i class="fa fa-users" aria-hidden="true"></i> Participantes</h2>
+              @if (!finalizada()) {
+                <div class="acciones-mini">
+                  <button type="button" class="btn-mini" (click)="sincronizarParticipantes()" [disabled]="sincronizando()" title="Obtener los nombres desde la plataforma" aria-label="Obtener participantes de la plataforma">
+                    <i class="fa fa-refresh" [class.fa-spin]="sincronizando()" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn-mini" (click)="agregarParticipante()" title="Agregar etiqueta genérica" aria-label="Agregar participante">
+                    <i class="fa fa-plus" aria-hidden="true"></i>
+                  </button>
+                </div>
+              }
+            </div>
+            @if (avisoParticipantes()) {
+              <p class="campo-ayuda">{{ avisoParticipantes() }}</p>
+            }
+            <ul class="lista-participantes">
+              @for (p of s.participantes; track p.id_participante) {
+                <li>
+                  @if (idEditando() === p.id_participante) {
+                    <input type="text" maxlength="100" [(ngModel)]="nombreEditado" [attr.aria-label]="'Nombre de ' + p.nombre" (keydown.enter)="guardarParticipante()" (keydown.escape)="idEditando.set(null)">
+                    <button type="button" class="btn-mini" (click)="guardarParticipante()" aria-label="Guardar nombre"><i class="fa fa-check" aria-hidden="true"></i></button>
+                  } @else {
+                    <span class="nombre">{{ p.nombre }}</span>
+                    @if (p.desde_plataforma) {
+                      <span class="etiqueta">{{ s.nombre_plataforma }}</span>
+                    }
+                    @if (p.generico && !finalizada()) {
+                      <button type="button" class="btn-mini" (click)="editarParticipante(p)" [attr.aria-label]="'Renombrar ' + p.nombre" title="Renombrar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+                    }
+                  }
+                </li>
+              }
+            </ul>
+            @if (!finalizada()) {
+              <label class="campo hablante">¿Quién habla ahora?
+                <select name="hablante" [ngModel]="hablanteActual()" (ngModelChange)="hablanteActual.set($event)">
+                  <option [ngValue]="null">Sin identificar</option>
+                  @for (p of s.participantes; track p.id_participante) {
+                    <option [ngValue]="p.id_participante">{{ p.nombre }}</option>
+                  }
+                </select>
+                <small class="campo-ayuda">El audio de la pestaña no indica quién habla: elige a la persona para etiquetar lo que se capture, o corrígelo después en cada subtítulo.</small>
+              </label>
+            }
+          </section>
+        }
+      </div>
+
+      <!-- COLUMNA DERECHA: CONTROL (HU-41), CAPTURA (HU-37) Y SUBTITULOS (HU-38, HU-39) -->
+      <div class="columna principal">
+        @if (sesion(); as s) {
+          <section class="panel control" aria-label="Control del servicio">
+            <div class="control-estado">
+              <span [class]="'insignia estado-' + s.estado" role="status"><i class="fa fa-circle" aria-hidden="true"></i> {{ etiquetasEstado[s.estado] }}</span>
+              <span class="captura-indicador" [class.activa]="captura.grabando()" role="status" aria-live="polite">
+                <i class="fa" [class.fa-microphone]="captura.grabando()" [class.fa-microphone-slash]="!captura.grabando()" aria-hidden="true"></i>
+                {{ estadoCaptura() }}
+                @if (captura.grabando()) {
+                  <span class="nivel" aria-hidden="true"><span [style.width.%]="captura.nivel() * 100"></span></span>
+                }
+              </span>
+              @if (fragmentosPendientes() > 0) {
+                <span class="pendientes"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...</span>
+              }
+            </div>
+
+            <div class="control-botones">
+              @switch (s.estado) {
+                @case ('configurada') {
+                  <button type="button" class="btn-primario" (click)="iniciar()" [disabled]="guardando()">
+                    <i class="fa fa-play" aria-hidden="true"></i> Iniciar traducción
+                  </button>
+                }
+                @case ('activa') {
+                  <button type="button" class="btn-secundario" (click)="pausar()" [disabled]="guardando()"><i class="fa fa-pause" aria-hidden="true"></i> Pausar</button>
+                }
+                @case ('pausada') {
+                  <button type="button" class="btn-primario" (click)="reanudar()" [disabled]="guardando()"><i class="fa fa-play" aria-hidden="true"></i> Reanudar</button>
+                }
+              }
+              @if ((s.estado === 'activa' || s.estado === 'pausada') && !captura.conectada()) {
+                <button type="button" class="btn-secundario" (click)="conectarCaptura()" [disabled]="conectandoCaptura()">
+                  <i class="fa fa-desktop" aria-hidden="true"></i> Conectar audio de la reunión
+                </button>
+              }
+              @if (s.estado !== 'finalizada') {
+                <button type="button" class="btn-peligro" (click)="confirmarFinalizar.set(true)" [disabled]="guardando()"><i class="fa fa-stop" aria-hidden="true"></i> Finalizar</button>
+              }
+            </div>
+
+            @if (s.estado === 'configurada') {
+              <p class="campo-ayuda">Abre la reunión en otra pestaña. Al iniciar, el navegador te pedirá elegir esa pestaña: marca <strong>«Compartir audio de la pestaña»</strong>. Si usas la aplicación de escritorio de Zoom, comparte la pantalla completa con el audio del sistema.</p>
+            }
+            @if (errorCaptura()) {
+              <p class="estado-mensaje error" role="alert"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ errorCaptura() }}</p>
+            }
+            @if (!captura.soportado && s.estado !== 'finalizada') {
+              <p class="estado-mensaje error">Tu navegador no permite capturar el audio de otra pestaña. Usa Chrome o Edge en una computadora.</p>
+            }
+          </section>
+
+          <section class="panel subtitulos" aria-labelledby="titulo-subtitulos">
+            <div class="cabecera-fila">
+              <h2 id="titulo-subtitulos" class="section-title"><i class="fa fa-cc" aria-hidden="true"></i> Subtítulos</h2>
+              <div class="opciones-subtitulos" role="group" aria-label="Opciones de los subtítulos">
+                <div class="segmentado" role="radiogroup" aria-label="Qué mostrar">
+                  <button type="button" role="radio" [attr.aria-checked]="modoSubtitulos() === 'ambos'" [class.activo]="modoSubtitulos() === 'ambos'" (click)="cambiarModo('ambos')">Ambos textos</button>
+                  <button type="button" role="radio" [attr.aria-checked]="modoSubtitulos() === 'traduccion'" [class.activo]="modoSubtitulos() === 'traduccion'" (click)="cambiarModo('traduccion')">Solo traducción</button>
+                </div>
+                <button type="button" class="btn-mini" (click)="cambiarTamano(-2)" [disabled]="tamanoTexto() <= tamanoMinimo" aria-label="Reducir texto" title="Reducir texto">A−</button>
+                <button type="button" class="btn-mini" (click)="cambiarTamano(2)" [disabled]="tamanoTexto() >= tamanoMaximo" aria-label="Agrandar texto" title="Agrandar texto">A+</button>
+                <label class="toggle" [title]="vozService.soportado ? 'Leer en voz alta cada traducción nueva' : 'Tu navegador no permite leer en voz alta'">
+                  <input type="checkbox" role="switch" [ngModel]="vozAutomatica()" (ngModelChange)="alternarVoz($event)" [disabled]="!vozService.soportado">
+                  <span class="switch" aria-hidden="true"></span> Voz
+                </label>
+              </div>
+            </div>
+
+            @if (s.estado === 'pausada') {
+              <p class="aviso"><i class="fa fa-pause-circle" aria-hidden="true"></i> El servicio está en pausa: no se captura ni se traduce. La reunión sigue con normalidad.</p>
+            }
+
+            @if (intervenciones().length === 0) {
+              <div class="vacio">
+                <i class="fa fa-cc" aria-hidden="true"></i>
+                <p>{{ s.estado === 'activa' ? (captura.grabando() ? 'Escuchando la reunión... los subtítulos aparecerán aquí.' : 'Conecta el audio de la reunión para empezar.') : s.estado === 'finalizada' ? 'Esta sesión no tuvo intervenciones.' : 'Todavía no hay traducciones disponibles.' }}</p>
+              </div>
+            } @else {
+              <ol #listaSubtitulos class="lista-subtitulos" [style.font-size.px]="tamanoTexto()" aria-live="polite" aria-label="Subtítulos de la reunión">
+                @for (i of intervenciones(); track i.id_intervencion) {
+                  <li class="subtitulo" [class.error]="i.estado === 'error'">
+                    <div class="subtitulo-cabecera">
+                      <select class="subtitulo-hablante" [ngModel]="i.id_participante" (ngModelChange)="asignarHablante(i, $event)" [disabled]="finalizada()" aria-label="Quién habló">
+                        <option [ngValue]="null">Sin identificar</option>
+                        @for (p of s.participantes; track p.id_participante) {
+                          <option [ngValue]="p.id_participante">{{ p.nombre }}</option>
+                        }
+                      </select>
+                      @if (i.codigo_idioma_origen) {
+                        <span class="idiomas-insignia">{{ i.codigo_idioma_origen }} → {{ i.codigo_idioma_destino }}</span>
+                      }
+                      <time [attr.datetime]="i.fecha_creacion">{{ i.fecha_creacion | date: 'HH:mm:ss' }}</time>
+                    </div>
+                    @if (modoSubtitulos() === 'ambos' || i.estado !== 'traducida') {
+                      <p class="original" [attr.lang]="i.codigo_idioma_origen">{{ i.texto_original }}</p>
+                    }
+                    @switch (i.estado) {
+                      @case ('traducida') {
+                        <div class="traduccion">
+                          <p [attr.lang]="i.codigo_idioma_destino">{{ i.texto_traducido }}</p>
+                          <button type="button" class="btn-mini" (click)="leer(i)" [disabled]="!vozService.soportado" [attr.aria-label]="idLeyendo() === i.id_intervencion && vozService.reproduciendo() ? 'Detener lectura' : 'Escuchar traducción'">
+                            <i class="fa" [class.fa-volume-up]="!(idLeyendo() === i.id_intervencion && vozService.reproduciendo())" [class.fa-stop]="idLeyendo() === i.id_intervencion && vozService.reproduciendo()" aria-hidden="true"></i>
+                          </button>
+                        </div>
+                      }
+                      @case ('procesando') {
+                        <p class="estado-subtitulo"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...</p>
+                      }
+                      @case ('error') {
+                        <p class="estado-subtitulo error" role="alert">
+                          <i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ i.mensaje_error || 'No se pudo traducir.' }}
+                          @if (i.codigo_idioma_origen && s.estado === 'activa') {
+                            <button type="button" class="btn-enlace" (click)="reintentar(i)" [disabled]="reintentando() !== null">Reintentar</button>
+                          }
+                        </p>
+                      }
+                    }
+                  </li>
+                }
+              </ol>
+            }
+          </section>
+        } @else {
+          <section class="panel vacio guia">
+            <i class="fa fa-info-circle" aria-hidden="true"></i>
+            <p><strong>Cómo funciona:</strong> configura la sesión con el enlace de tu reunión. Después abre la reunión en otra pestaña, pulsa «Iniciar traducción» y elige esa pestaña con su audio. Verás aquí los subtítulos traducidos mientras hablan.</p>
+          </section>
+        }
+      </div>
+    </div>
+  }
+
+  @if (confirmarFinalizar()) {
+    <div class="modal-overlay" (click)="!guardando() && confirmarFinalizar.set(false)">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="alertdialog" aria-modal="true" aria-labelledby="modal-finalizar-titulo">
+        <div class="modal-header">
+          <h3 id="modal-finalizar-titulo"><i class="fa fa-stop-circle" aria-hidden="true"></i> Finalizar la traducción</h3>
+        </div>
+        <p class="modal-texto">Se dejará de capturar y traducir, y la sesión quedará en tu historial. <strong>Tu reunión en {{ sesion()?.nombre_plataforma }} no se cortará.</strong></p>
+        <div class="modal-actions">
+          <button type="button" class="btn-secundario" (click)="confirmarFinalizar.set(false)" [disabled]="guardando()">Cancelar</button>
+          <button type="button" class="btn-peligro" (click)="finalizarConfirmado()" [disabled]="guardando()">Finalizar</button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

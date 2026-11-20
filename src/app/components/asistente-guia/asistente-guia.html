@@ -1,0 +1,144 @@
+<!-- BOTÓN FLOTANTE (FAB) -->
+<button
+  type="button"
+  class="asistente-fab"
+  [class.fab-abierto]="estaAbierto"
+  (click)="alternarChat()"
+  [attr.aria-expanded]="estaAbierto"
+  aria-label="Asistente Guía de TraduContext"
+  title="Asistente Guía de TraduContext"
+>
+  @if (estaAbierto) {
+    <i class="fa fa-times" aria-hidden="true"></i>
+  } @else {
+    <i class="fa fa-comments-o" aria-hidden="true"></i>
+    <span class="fab-badge" aria-hidden="true"></span>
+  }
+</button>
+
+<!-- VENTANA FLOTANTE DEL CHAT -->
+@if (estaAbierto) {
+  <div class="asistente-ventana" role="dialog" aria-modal="false" aria-labelledby="chat-titulo">
+    <!-- 1. CABECERA -->
+    <header class="asistente-header">
+      <div class="header-info">
+        <div class="asistente-avatar" aria-hidden="true">
+          <i class="fa fa-magic"></i>
+        </div>
+        <div class="header-text">
+          <div class="header-titulo-row">
+            <h3 id="chat-titulo" class="asistente-titulo">Asistente Guía TraduContext</h3>
+            <span class="vista-badge" title="Módulo detectado">{{ obtenerEtiquetaVista(vistaActual) }}</span>
+          </div>
+          <p class="asistente-subtitulo">Consultas sobre el sistema</p>
+        </div>
+      </div>
+
+      <div class="header-acciones">
+        <button
+          type="button"
+          class="btn-icono-header"
+          (click)="reiniciarChat()"
+          title="Reiniciar conversación"
+          aria-label="Reiniciar conversación"
+          [disabled]="cargando"
+        >
+          <i class="fa fa-refresh" [class.fa-spin]="cargando" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="btn-icono-header"
+          (click)="cerrarChat()"
+          title="Cerrar asistente"
+          aria-label="Cerrar asistente"
+        >
+          <i class="fa fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. LISTA DE MENSAJES -->
+    <div #messagesScroll class="asistente-mensajes">
+      @for (msj of mensajes; track msj.fecha.getTime() + msj.contenido) {
+        <div class="mensaje-fila" [class.fila-usuario]="msj.rol === 'user'" [class.fila-asistente]="msj.rol === 'assistant'">
+          @if (msj.rol === 'assistant') {
+            <div class="avatar-mensaje" aria-hidden="true">
+              <i class="fa fa-magic"></i>
+            </div>
+          }
+          <div class="burbuja" [class.burbuja-usuario]="msj.rol === 'user'" [class.burbuja-asistente]="msj.rol === 'assistant'">
+            <div class="contenido-mensaje" [innerHTML]="formatearMarkdown(msj.contenido)"></div>
+            <span class="hora-mensaje">{{ msj.fecha | date:'HH:mm' }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- INDICADOR DE ESCRIBIENDO... -->
+      @if (cargando) {
+        <div class="mensaje-fila fila-asistente">
+          <div class="avatar-mensaje" aria-hidden="true">
+            <i class="fa fa-magic"></i>
+          </div>
+          <div class="burbuja burbuja-asistente burbuja-escribiendo">
+            <div class="dots-indicador">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </div>
+            <span class="texto-escribiendo">Escribiendo respuesta...</span>
+          </div>
+        </div>
+      }
+
+      <!-- 3. CHIPS DE SUGERENCIAS RÁPIDAS -->
+      @if (sugerencias.length > 0 && !cargando) {
+        <div class="sugerencias-seccion">
+          <p class="sugerencias-titulo">
+            <i class="fa fa-lightbulb-o" aria-hidden="true"></i> Preguntas sugeridas:
+          </p>
+          <div class="sugerencias-lista">
+            @for (sug of sugerencias; track sug) {
+              <button
+                type="button"
+                class="chip-sugerencia"
+                (click)="seleccionarSugerencia(sug)"
+                [disabled]="cargando"
+              >
+                {{ sug }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- 4. INPUT INFERIOR -->
+    <footer class="asistente-footer">
+      <form class="input-form" (ngSubmit)="enviarTexto()">
+        <input
+          #inputPregunta
+          type="text"
+          class="input-texto"
+          placeholder="Escribe tu duda sobre TraduContext..."
+          [(ngModel)]="textoPregunta"
+          name="pregunta"
+          (keydown)="onKeydown($event)"
+          [disabled]="cargando"
+          autocomplete="off"
+        />
+        <button
+          type="submit"
+          class="btn-enviar"
+          [disabled]="!textoPregunta.trim() || cargando"
+          aria-label="Enviar pregunta"
+          title="Enviar pregunta"
+        >
+          <i class="fa fa-paper-plane" aria-hidden="true"></i>
+        </button>
+      </form>
+      <div class="footer-meta">
+        <span>Presiona <strong>Enter</strong> para enviar</span>
+      </div>
+    </footer>
+  </div>
+}

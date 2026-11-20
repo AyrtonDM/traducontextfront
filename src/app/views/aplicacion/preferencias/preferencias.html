@@ -1,0 +1,224 @@
+<main class="preferencias-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Preferencias</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-cog" aria-hidden="true"></i>
+      <div>
+        <h1>Preferencias</h1>
+        <p>Tus valores habituales de traducción y lo que el sistema aprendió de tus correcciones.</p>
+      </div>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ error() }}</p>
+  }
+  @if (mensaje()) {
+    <p class="estado-mensaje exito pagina-mensaje" role="status"><i class="fa fa-check-circle" aria-hidden="true"></i> {{ mensaje() }}</p>
+  }
+
+  <div class="preferencias-layout">
+    <!-- PREFERENCIAS DE TRADUCCION (HU-33) -->
+    <form class="panel" aria-labelledby="titulo-preferencias" (ngSubmit)="guardar()">
+      <h2 id="titulo-preferencias" class="section-title"><i class="fa fa-sliders" aria-hidden="true"></i> Preferencias de traducción</h2>
+      <p class="panel-ayuda">Se cargan solas al abrir una traducción de texto, un documento o una conversación. Allí puedes cambiarlas para una traducción puntual sin modificar lo que guardes aquí.</p>
+
+      @if (cargando()) {
+        <p class="estado-mensaje"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando preferencias...</p>
+      } @else {
+        <div class="campos">
+          <label class="campo">Idioma de destino
+            <span class="select-icono">
+              <i class="fa fa-globe" aria-hidden="true"></i>
+              <select name="idiomaDestino" [ngModel]="formulario.idiomaDestino" (ngModelChange)="alCambiarIdioma($event)" [disabled]="guardando()">
+                <option [ngValue]="null">Sin preferencia</option>
+                @for (idioma of idiomas(); track idioma.codigo) {
+                  <option [ngValue]="idioma.codigo">{{ idioma.nombre }}</option>
+                }
+              </select>
+            </span>
+          </label>
+
+          <label class="campo">Variante regional
+            <span class="select-icono">
+              <i class="fa fa-map-marker" aria-hidden="true"></i>
+              <select name="idVariante" [(ngModel)]="formulario.idVariante" [disabled]="guardando() || variantesDisponibles.length === 0">
+                <option [ngValue]="null">Sin variante</option>
+                @for (variante of variantesDisponibles; track variante.id_variante_regional) {
+                  <option [ngValue]="variante.id_variante_regional">{{ variante.nombre }}</option>
+                }
+              </select>
+            </span>
+            <small class="campo-ayuda">{{ formulario.idiomaDestino ? (variantesDisponibles.length ? 'Solo se muestran las del idioma de destino.' : 'Este idioma no tiene variantes regionales.') : 'Elige primero un idioma de destino.' }}</small>
+          </label>
+
+          <label class="campo">Contexto <span class="requerido">*</span>
+            <span class="select-icono">
+              <i class="fa fa-briefcase" aria-hidden="true"></i>
+              <select name="idContexto" [(ngModel)]="formulario.idContexto" [disabled]="guardando()">
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (contexto of contextosActivos(); track contexto.id_contexto) {
+                  <option [ngValue]="contexto.id_contexto">{{ contexto.nombre }}</option>
+                }
+              </select>
+            </span>
+          </label>
+
+          <label class="campo">Tono <span class="requerido">*</span>
+            <span class="select-icono">
+              <i class="fa fa-commenting-o" aria-hidden="true"></i>
+              <select name="idTono" [(ngModel)]="formulario.idTono" [disabled]="guardando()">
+                <option [ngValue]="null" disabled>Selecciona</option>
+                @for (tono of tonosActivos(); track tono.id_tono) {
+                  <option [ngValue]="tono.id_tono">{{ tono.nombre }}</option>
+                }
+              </select>
+            </span>
+          </label>
+
+          <label class="campo campo-ancho">Glosario predeterminado
+            <span class="select-icono">
+              <i class="fa fa-book" aria-hidden="true"></i>
+              <select name="idGlosario" [(ngModel)]="formulario.idGlosario" [disabled]="guardando() || glosariosDisponibles.length === 0">
+                <option [ngValue]="null">Sin glosario</option>
+                @for (glosario of glosariosDisponibles; track glosario.id_glosario) {
+                  <option [ngValue]="glosario.id_glosario">{{ glosario.nombre }} ({{ glosario.par_idiomas }})</option>
+                }
+              </select>
+            </span>
+            <small class="campo-ayuda">Solo se aplica cuando el idioma de origen de la traducción coincide con el del glosario.</small>
+          </label>
+        </div>
+
+        <div class="opciones">
+          <label class="toggle">
+            <input type="checkbox" role="switch" name="explicarExpresiones" [(ngModel)]="formulario.explicarExpresiones" [disabled]="guardando()">
+            <span class="switch" aria-hidden="true"></span> Explicar modismos y expresiones
+          </label>
+          <label class="toggle">
+            <input type="checkbox" role="switch" name="generarAlternativas" [(ngModel)]="formulario.generarAlternativas" [disabled]="guardando()">
+            <span class="switch" aria-hidden="true"></span> Mostrar alternativas de traducción
+          </label>
+        </div>
+
+        <div class="acciones">
+          <button type="button" class="btn-secundario" (click)="confirmacion.set('restablecer')" [disabled]="guardando()">
+            <i class="fa fa-undo" aria-hidden="true"></i> Restablecer valores por defecto
+          </button>
+          @if (hayCambios) {
+            <button type="button" class="btn-secundario" (click)="descartarCambios()" [disabled]="guardando()">Descartar cambios</button>
+          }
+          <button type="submit" class="btn-primario" [disabled]="guardando() || !hayCambios">
+            <i class="fa" [class.fa-floppy-o]="!guardando()" [class.fa-spinner]="guardando()" [class.fa-spin]="guardando()" aria-hidden="true"></i>
+            {{ guardando() ? 'Guardando...' : 'Guardar preferencias' }}
+          </button>
+        </div>
+      }
+    </form>
+
+    <!-- APRENDIZAJE DE PREFERENCIAS (HU-34) -->
+    <section class="panel" aria-labelledby="titulo-aprendizaje">
+      <div class="aprendizaje-cabecera">
+        <h2 id="titulo-aprendizaje" class="section-title"><i class="fa fa-graduation-cap" aria-hidden="true"></i> Aprendizaje de preferencias</h2>
+        <label class="toggle">
+          <input type="checkbox" role="switch" name="aprendizajeActivo" [ngModel]="aprendizajeActivo()" (ngModelChange)="alternarAprendizaje($event)" [disabled]="cambiandoAprendizaje()">
+          <span class="switch" aria-hidden="true"></span> {{ aprendizajeActivo() ? 'Activado' : 'Desactivado' }}
+        </label>
+      </div>
+      <p class="panel-ayuda">
+        Cuando corriges una traducción (botón <i class="fa fa-pencil" aria-hidden="true"></i>) o eliges una alternativa, se guarda aquí y se usa para orientar tus siguientes traducciones en el mismo par de idiomas. Solo se aplica a tu cuenta.
+        @if (!aprendizajeActivo()) {
+          <strong>Mientras esté desactivado no se registra ni se aplica nada; lo ya aprendido se conserva.</strong>
+        }
+      </p>
+
+      @if (errorAprendizaje()) {
+        <p class="estado-mensaje error" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorAprendizaje() }}</p>
+      }
+
+      <div class="filtros">
+        <span class="total">{{ totalCorrecciones() }} {{ totalCorrecciones() === 1 ? 'corrección registrada' : 'correcciones registradas' }}</span>
+        <select name="filtroOrigen" aria-label="Filtrar por idioma de origen" [(ngModel)]="filtroOrigen" (ngModelChange)="cargarCorrecciones()">
+          <option [ngValue]="null">Cualquier origen</option>
+          @for (idioma of idiomas(); track idioma.codigo) {
+            <option [ngValue]="idioma.codigo">{{ idioma.nombre }}</option>
+          }
+        </select>
+        <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+        <select name="filtroDestino" aria-label="Filtrar por idioma de destino" [(ngModel)]="filtroDestino" (ngModelChange)="cargarCorrecciones()">
+          <option [ngValue]="null">Cualquier destino</option>
+          @for (idioma of idiomas(); track idioma.codigo) {
+            <option [ngValue]="idioma.codigo">{{ idioma.nombre }}</option>
+          }
+        </select>
+        @if (totalCorrecciones() > 0) {
+          <button type="button" class="btn-peligro" (click)="confirmacion.set('borrar_todo')" [disabled]="eliminando() !== null">
+            <i class="fa fa-trash-o" aria-hidden="true"></i> Borrar todo
+          </button>
+        }
+      </div>
+
+      @if (cargandoCorrecciones()) {
+        <p class="estado-mensaje"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando correcciones...</p>
+      } @else if (correcciones().length === 0) {
+        <div class="vacio">
+          <i class="fa fa-lightbulb-o" aria-hidden="true"></i>
+          <p>{{ filtroOrigen || filtroDestino ? 'No hay correcciones para ese par de idiomas.' : 'Todavía no hay correcciones. Corrige una traducción en' }}
+            @if (!filtroOrigen && !filtroDestino) { <a routerLink="/traduccion">Traducción</a>. }
+          </p>
+        </div>
+      } @else {
+        <ul class="correcciones-lista">
+          @for (correccion of correcciones(); track correccion.id_correccion) {
+            <li class="correccion">
+              <div class="correccion-cabecera">
+                <span class="par">{{ correccion.codigo_idioma_origen }} <i class="fa fa-long-arrow-right" aria-hidden="true"></i> {{ correccion.codigo_idioma_destino }}</span>
+                <span class="tipo" [class.alternativa]="correccion.tipo === 'alternativa'">{{ correccion.tipo === 'alternativa' ? 'Alternativa elegida' : 'Corrección' }}</span>
+                <time [attr.datetime]="correccion.fecha_actualizacion || correccion.fecha_creacion">{{ (correccion.fecha_actualizacion || correccion.fecha_creacion) | date: 'dd/MM/yyyy HH:mm' }}</time>
+                <button type="button" class="btn-mini" (click)="eliminarCorreccion(correccion)" [disabled]="eliminando() !== null" aria-label="Eliminar corrección" title="Eliminar">
+                  <i class="fa" [class.fa-trash-o]="eliminando() !== correccion.id_correccion" [class.fa-spinner]="eliminando() === correccion.id_correccion" [class.fa-spin]="eliminando() === correccion.id_correccion" aria-hidden="true"></i>
+                </button>
+              </div>
+              <p class="original" [attr.lang]="correccion.codigo_idioma_origen">{{ correccion.texto_original }}</p>
+              <p class="generada" [attr.lang]="correccion.codigo_idioma_destino"><span class="etiqueta">Antes:</span> <s>{{ correccion.traduccion_generada }}</s></p>
+              <p class="corregida" [attr.lang]="correccion.codigo_idioma_destino"><span class="etiqueta">Ahora:</span> {{ correccion.traduccion_corregida }}</p>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <!-- CONFIRMACIONES -->
+  @if (confirmacion(); as accion) {
+    <div class="modal-overlay" (click)="confirmacion.set(null)">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="alertdialog" aria-modal="true" aria-labelledby="modal-titulo" aria-describedby="modal-texto">
+        <div class="modal-header">
+          <h3 id="modal-titulo">
+            <i class="fa" [class.fa-undo]="accion === 'restablecer'" [class.fa-trash-o]="accion === 'borrar_todo'" aria-hidden="true"></i>
+            {{ accion === 'restablecer' ? 'Restablecer preferencias' : 'Borrar todo lo aprendido' }}
+          </h3>
+        </div>
+        <p id="modal-texto" class="modal-texto">
+          {{ accion === 'restablecer'
+            ? 'Tus preferencias volverán a los valores por defecto: primer contexto y tono, sin idioma, variante ni glosario predeterminados. Lo aprendido no se borra.'
+            : 'Se eliminarán las ' + totalCorrecciones() + ' correcciones registradas y dejarán de orientar tus traducciones. No se puede deshacer.' }}
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn-secundario" (click)="confirmacion.set(null)" [disabled]="guardando() || eliminando() !== null">Cancelar</button>
+          <button
+            type="button"
+            class="btn-peligro"
+            (click)="accion === 'restablecer' ? restablecerConfirmado() : eliminarTodasConfirmado()"
+            [disabled]="guardando() || eliminando() !== null"
+          >
+            {{ accion === 'restablecer' ? 'Restablecer' : 'Borrar todo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

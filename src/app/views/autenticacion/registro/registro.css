@@ -1,0 +1,46 @@
+:host {
+	display: block;
+	min-height: 100vh;
+}
+
+.registro-page {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: linear-gradient(135deg, rgba(66, 20, 154, 0.12), rgba(53, 131, 190, 0.08));
+}
+
+.registro-card {
+	width: min(100%, 440px);
+	padding: 32px 24px;
+	border: 1px solid rgba(66, 20, 154, 0.08);
+	border-radius: var(--radio-grande);
+	background: rgba(255, 255, 255, 0.9);
+	box-shadow: var(--sombra-suave);
+	backdrop-filter: blur(10px);
+}
+
+.registro-header { margin-bottom: 24px; text-align: center; }
+.registro-header h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 3vw, 2.2rem); line-height: 1.2; color: var(--color-texto); }
+.registro-header p, .login-link { margin: 0; color: var(--color-texto-secundario); font-size: 0.95rem; }
+.registro-form { display: grid; gap: 4px; }
+.form-field { display: grid; gap: 8px; }
+.form-field label { color: var(--color-texto); font-size: 0.88rem; font-weight: 600; }
+.form-field input { width: 100%; min-height: 46px; padding: 0.9rem 1rem; border: 1px solid rgba(107, 114, 128, 0.35); border-radius: var(--radio-medio); background: var(--color-fondo); color: var(--color-texto); font: inherit; outline: none; transition: border-color var(--transicion), box-shadow var(--transicion); }
+.form-field input::placeholder { color: rgba(31, 41, 55, 0.5); }
+.form-field input:focus { border-color: var(--color-secundario); box-shadow: 0 0 0 4px rgba(53, 131, 190, 0.12); }
+.form-field input.input-error { border-color: var(--color-error); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08); }
+.form-field small { color: var(--color-error); font-size: 0.76rem; font-weight: 600; line-height: 1.35; }
+.acciones { display: grid; margin-top: 16px; }
+.primary-button { width: 100%; min-height: 46px; padding: 0 1.2rem; border: 0; border-radius: var(--radio-medio); background: linear-gradient(135deg, var(--color-primario), var(--color-secundario)); box-shadow: 0 12px 24px rgba(66, 20, 154, 0.18); color: var(--color-texto-claro); cursor: pointer; font: inherit; font-weight: 700; transition: transform var(--transicion), box-shadow var(--transicion), opacity var(--transicion); }
+.primary-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 28px rgba(38, 19, 83, 0.42); }
+.primary-button:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
+.login-link { margin-top: 20px; text-align: center; font-weight: 500; }
+.login-link a { color: var(--color-secundario); font-weight: 700; text-decoration: none; }
+.login-link a:hover { color: var(--color-primario); text-decoration: underline; }
+@media (max-width: 480px) {
+	.registro-page { padding: 16px; }
+	.registro-card { padding: 24px 18px; }
+}

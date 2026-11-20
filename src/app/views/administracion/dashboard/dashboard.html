@@ -1,0 +1,156 @@
+<main class="dashboard-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span>Administración</span><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Dashboard</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-bar-chart" aria-hidden="true"></i>
+      <div>
+        <h1>Dashboard administrativo</h1>
+        <p>Indicadores de uso y actividad de la plataforma en el período seleccionado.</p>
+      </div>
+    </div>
+    <button type="button" class="btn-ayuda" (click)="ayudaVisible.set(!ayudaVisible())" [attr.aria-expanded]="ayudaVisible()">
+      <i class="fa fa-question-circle" aria-hidden="true"></i> ¿Cómo funciona?
+    </button>
+  </header>
+
+  @if (ayudaVisible()) {
+    <aside class="info-panel">
+      <i class="fa fa-info-circle" aria-hidden="true"></i>
+      <span>Los indicadores se calculan con los datos reales de la plataforma. Un usuario está <strong>activo</strong> si inició sesión o usó algún servicio de traducción en el período. Los idiomas cuentan tanto el de origen como el de destino; los contextos incluyen traducciones de texto y conversaciones.</span>
+    </aside>
+  }
+
+  <!-- PERIODO -->
+  <section class="panel periodo" aria-label="Período de los indicadores">
+    <div class="periodo-opciones" role="group" aria-label="Período">
+      @for (opcion of opcionesPeriodo; track opcion.valor) {
+        <button type="button" class="chip" [class.activo]="periodoSeleccionado() === opcion.valor" [attr.aria-pressed]="periodoSeleccionado() === opcion.valor" [disabled]="cargando()" (click)="seleccionarPeriodo(opcion.valor)">
+          {{ opcion.etiqueta }}
+        </button>
+      }
+    </div>
+    @if (periodoSeleccionado() === 'personalizado') {
+      <form class="periodo-personalizado" (ngSubmit)="aplicarPersonalizado()">
+        <label>Desde <input type="date" name="desde" [(ngModel)]="fechaDesde" [max]="fechaHasta || hoy" required /></label>
+        <label>Hasta <input type="date" name="hasta" [(ngModel)]="fechaHasta" [min]="fechaDesde" [max]="hoy" required /></label>
+        <button type="submit" class="btn-primario" [disabled]="cargando()"><i class="fa fa-check" aria-hidden="true"></i> Aplicar</button>
+      </form>
+    }
+    @if (datos(); as d) {
+      <p class="periodo-texto">
+        <i class="fa fa-calendar" aria-hidden="true"></i>
+        {{ d.periodo.fecha_desde | date: 'dd/MM/yyyy' }} – {{ d.periodo.fecha_hasta | date: 'dd/MM/yyyy' }}
+        @if (cargando()) { <i class="fa fa-spinner fa-spin" aria-label="Actualizando"></i> }
+      </p>
+    }
+  </section>
+
+  @if (mensajeError()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ mensajeError() }}</p>
+  }
+
+  @if (!datos() && cargando()) {
+    <p class="vacio"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando indicadores...</p>
+  }
+
+  @if (datos(); as d) {
+    <!-- INDICADORES -->
+    <section class="indicadores" aria-label="Indicadores generales" [class.actualizando]="cargando()">
+      <article class="tarjeta">
+        <i class="fa fa-users" aria-hidden="true"></i>
+        <div>
+          <span class="tarjeta-valor">{{ d.usuarios.total | number }}</span>
+          <span class="tarjeta-titulo">Usuarios registrados</span>
+          <small>{{ d.usuarios.nuevos_periodo | number }} nuevos en el período</small>
+        </div>
+      </article>
+      <article class="tarjeta">
+        <i class="fa fa-user-circle" aria-hidden="true"></i>
+        <div>
+          <span class="tarjeta-valor">{{ d.usuarios.activos_periodo | number }}</span>
+          <span class="tarjeta-titulo">Usuarios activos</span>
+          <small>en el período</small>
+        </div>
+      </article>
+      <article class="tarjeta">
+        <i class="fa fa-language" aria-hidden="true"></i>
+        <div>
+          <span class="tarjeta-valor">{{ d.actividad.traducciones_texto | number }}</span>
+          <span class="tarjeta-titulo">Traducciones de texto</span>
+        </div>
+      </article>
+      <article class="tarjeta">
+        <i class="fa fa-file-text-o" aria-hidden="true"></i>
+        <div>
+          <span class="tarjeta-valor">{{ d.actividad.documentos_traducidos | number }}</span>
+          <span class="tarjeta-titulo">Documentos traducidos</span>
+        </div>
+      </article>
+      <article class="tarjeta">
+        <i class="fa fa-comments-o" aria-hidden="true"></i>
+        <div>
+          <span class="tarjeta-valor">{{ d.actividad.conversaciones | number }}</span>
+          <span class="tarjeta-titulo">Conversaciones</span>
+        </div>
+      </article>
+      <article class="tarjeta" [class.deshabilitada]="!d.actividad.sesiones_externas_disponible">
+        <i class="fa fa-video-camera" aria-hidden="true"></i>
+        <div>
+          <span class="tarjeta-valor">{{ d.actividad.sesiones_externas | number }}</span>
+          <span class="tarjeta-titulo">Sesiones externas</span>
+          @if (!d.actividad.sesiones_externas_disponible) {
+            <small>Disponible con la integración de Meet y Zoom</small>
+          }
+        </div>
+      </article>
+    </section>
+
+    <!-- EVOLUCION -->
+    <section class="panel" aria-labelledby="titulo-evolucion">
+      <div class="panel-header">
+        <h2 id="titulo-evolucion" class="section-title"><i class="fa fa-line-chart" aria-hidden="true"></i> Evolución de las traducciones</h2>
+        <small>{{ d.periodo.agrupacion === 'mes' ? 'Por mes' : 'Por día' }}</small>
+      </div>
+      @if (totalTraducciones === 0) {
+        <p class="vacio">No hubo traducciones en este período.</p>
+      }
+      <div class="grafico" [class.oculto]="totalTraducciones === 0">
+        <canvas #graficoEvolucion role="img" aria-label="Gráfico de la evolución de traducciones de texto, documentos y conversaciones en el período"></canvas>
+      </div>
+    </section>
+
+    <!-- RANKINGS -->
+    <div class="rankings">
+      <section class="panel" aria-labelledby="titulo-idiomas">
+        <h2 id="titulo-idiomas" class="section-title"><i class="fa fa-globe" aria-hidden="true"></i> Idiomas más utilizados</h2>
+        <ol class="ranking">
+          @for (idioma of d.idiomas_mas_utilizados; track idioma.id_idioma) {
+            <li>
+              <div class="ranking-fila"><span>{{ idioma.nombre }} <small>{{ idioma.codigo.toUpperCase() }}</small></span><strong>{{ idioma.total | number }}</strong></div>
+              <div class="barra" aria-hidden="true"><span [style.width.%]="porcentaje(idioma.total, d.idiomas_mas_utilizados)"></span></div>
+            </li>
+          } @empty {
+            <li class="vacio">Sin datos en este período.</li>
+          }
+        </ol>
+      </section>
+
+      <section class="panel" aria-labelledby="titulo-contextos">
+        <h2 id="titulo-contextos" class="section-title"><i class="fa fa-briefcase" aria-hidden="true"></i> Contextos más utilizados</h2>
+        <ol class="ranking">
+          @for (contexto of d.contextos_mas_utilizados; track contexto.id_contexto) {
+            <li>
+              <div class="ranking-fila"><span>{{ contexto.nombre }}</span><strong>{{ contexto.total | number }}</strong></div>
+              <div class="barra" aria-hidden="true"><span [style.width.%]="porcentaje(contexto.total, d.contextos_mas_utilizados)"></span></div>
+            </li>
+          } @empty {
+            <li class="vacio">Sin datos en este período.</li>
+          }
+        </ol>
+      </section>
+    </div>
+  }
+</main>

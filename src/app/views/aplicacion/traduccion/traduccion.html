@@ -1,0 +1,391 @@
+<main class="traduccion-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Traducción</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-magic" aria-hidden="true"></i>
+      <div><h1>Traduccion contextual</h1><p>Traduce con el significado correcto segun el contexto, tono y dominio.</p></div>
+    </div>
+    <button class="help-button" type="button" (click)="ayuda = !ayuda" [attr.aria-expanded]="ayuda" aria-controls="ayuda"><i class="fa fa-question-circle" aria-hidden="true"></i> �Como funciona?</button>
+  </header>
+  @if (ayuda) {
+    <aside class="help-panel" id="ayuda">Escribe el texto de origen, elige los idiomas y ajusta el contexto y el tono. Esta vista muestra datos de ejemplo; la traduccion automatica estara disponible al conectar el servicio.</aside>
+  }
+
+  <div class="workspace-layout">
+    <div class="workspace-main">
+      <section class="panel translation-panel" aria-label="Editor de traducción">
+    <div class="editor source-editor">
+      <div class="editor-header">
+        <label for="texto-origen" class="section-title">Texto de origen</label>
+        <div class="language-field">
+          <span class="source-count">{{ texto.length }}/5000</span>
+          <i class="fa fa-globe" aria-hidden="true"></i>
+          <select aria-label="Idioma de origen" [ngModel]="origen" (ngModelChange)="onOrigenChange($event)">
+            <option value="">Seleccione...</option>
+            @for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="text-box source-box">
+        <textarea id="texto-origen" maxlength="5000" [(ngModel)]="texto" (ngModelChange)="actualizarTexto()" (blur)="guardarEnHistorial()" (keydown.control.enter)="traducir()" placeholder="Escribe o pega el texto que quieres traducir..."></textarea>
+        <button class="icon-button clear-button" type="button" aria-label="Borrar texto" (click)="limpiar()" [disabled]="!texto"><i class="fa fa-times" aria-hidden="true"></i></button>
+        <div class="source-tools">
+          <button class="icon-button" type="button" disabled aria-label="Importar documento (próximamente)" title="Importar documento: próximamente"><i class="fa fa-file-text-o" aria-hidden="true"></i></button>
+          <button class="icon-button" type="button" disabled aria-label="Dictar texto (próximamente)" title="Dictado: próximamente"><i class="fa fa-microphone" aria-hidden="true"></i></button>
+          <button class="icon-button" type="button" disabled aria-label="Importar imagen (próximamente)" title="Importar imagen: próximamente"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="swap-column"><button class="swap-button" type="button" aria-label="Intercambiar idiomas" (click)="intercambiar()"><i class="fa fa-exchange" aria-hidden="true"></i></button></div>
+    <div class="editor target-editor">
+      <div class="editor-header">
+        <h2 class="section-title">Traducción</h2>
+        <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [ngModel]="destino" (ngModelChange)="onDestinoChange($event)">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
+      </div>
+      <div class="text-box result-box">
+        @if (editandoResultado()) {
+          <!-- HU-34: correccion manual del resultado -->
+          <div class="correccion-edicion">
+            <textarea
+              aria-label="Corregir la traducción"
+              rows="4"
+              maxlength="5000"
+              [(ngModel)]="textoEditado"
+              (keydown.escape)="cancelarEdicion()"
+              (keydown.control.enter)="guardarCorreccion()"
+            ></textarea>
+            <div class="correccion-acciones">
+              <button type="button" class="correccion-cancelar" (click)="cancelarEdicion()">Cancelar</button>
+              <button type="button" class="correccion-guardar" [disabled]="!textoEditado.trim() || guardandoCorreccion()" (click)="guardarCorreccion()">
+                <i class="fa fa-check" aria-hidden="true"></i> Guardar corrección
+              </button>
+            </div>
+          </div>
+        } @else {
+          <p aria-live="polite" [class.traduciendo]="cargando()">
+            @if (cargando() && !resultado) {
+              <span class="cargando-texto"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...</span>
+            } @else {
+              {{ resultado || 'Tu traducción aparecerá aquí.' }}
+            }
+          </p>
+        }
+        <div class="result-tools">
+          <button class="icon-button" type="button" aria-label="Corregir traducción" title="Corregir: el sistema aprenderá tu versión" [disabled]="!puedeEditarResultado || editandoResultado()" (click)="editarResultado()"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+          <button class="icon-button" type="button" aria-label="Marcar como favorito en esta vista" [attr.aria-pressed]="favorito" [disabled]="!resultado" (click)="favorito = !favorito"><i class="fa" [class.fa-star]="favorito" [class.fa-star-o]="!favorito" aria-hidden="true"></i></button>
+          <button class="icon-button" type="button" aria-label="Copiar traducción" [disabled]="!resultado" (click)="copiar()"><i class="fa fa-file-o" aria-hidden="true"></i></button>
+          <button class="icon-button" type="button" aria-label="Escuchar traducción" [disabled]="!resultado" (click)="escuchar()"><i class="fa fa-volume-up" aria-hidden="true"></i></button>
+          @if (vozService.reproduciendo()) {
+            <button class="icon-button" type="button" aria-label="Detener reproducción" (click)="detenerVoz()"><i class="fa fa-stop" aria-hidden="true"></i></button>
+          }
+          <label class="voz-auto" title="Leer en voz alta cada nueva traducción">
+            <input type="checkbox" [(ngModel)]="reproduccionAutomatica" /> Auto
+          </label>
+        </div>
+      </div>
+      <div class="result-footer">
+          <button
+            class="guardar-historial"
+            type="button"
+            [class.guardado]="estadoHistorial() === 'guardado'"
+            [disabled]="!puedeGuardarEnHistorial"
+            [title]="estadoHistorial() === 'guardado' ? 'Esta traducción ya está en tu historial' : 'Guardar esta traducción en tu historial'"
+            (click)="guardarEnHistorial(true)"
+          >
+            <i
+              class="fa"
+              [class.fa-floppy-o]="estadoHistorial() !== 'guardado' && estadoHistorial() !== 'guardando'"
+              [class.fa-spinner]="estadoHistorial() === 'guardando'"
+              [class.fa-spin]="estadoHistorial() === 'guardando'"
+              [class.fa-check]="estadoHistorial() === 'guardado'"
+              aria-hidden="true"
+            ></i>
+            {{ estadoHistorial() === 'guardado' ? 'Guardado' : 'Guardar en historial' }}
+          </button>
+      </div>
+      @if (correccionesAplicadas() > 0 && resultado && !editandoResultado()) {
+        <p class="aviso-traduccion aviso-aprendizaje" role="status">
+          <i class="fa fa-graduation-cap" aria-hidden="true"></i>
+          Se consideraron tus preferencias aprendidas ({{ correccionesAplicadas() }} {{ correccionesAplicadas() === 1 ? 'corrección' : 'correcciones' }}).
+          <a routerLink="/preferencias">Gestionar</a>
+        </p>
+      }
+      @if (avisoVoz()) {
+        <p class="aviso-traduccion aviso-voz" role="status">
+          <i class="fa fa-volume-off" aria-hidden="true"></i> {{ avisoVoz() }}
+        </p>
+      }
+      @if (avisoRegion) {
+        <p
+          class="aviso-traduccion"
+          [class.aviso-incompatible]="estadoRegion() === 'incompatible'"
+          [class.aviso-error]="estadoRegion() === 'error_adaptacion'"
+          role="status"
+        >
+          <i class="fa" [class.fa-map-marker]="estadoRegion() === 'incompatible'" [class.fa-exclamation-circle]="estadoRegion() === 'error_adaptacion'" aria-hidden="true"></i>
+          {{ avisoRegion }}
+        </p>
+      }
+    </div>
+      </section>
+
+      @if (sugerencias().length > 0 && resultado) {
+        <section class="panel extra-panel sugerencias-panel" aria-labelledby="sugerencias-title">
+          <div class="extra-panel-header">
+            <h2 id="sugerencias-title" class="section-title">
+              <i class="fa fa-history" aria-hidden="true"></i> Traducciones anteriores similares
+            </h2>
+            <span class="extra-panel-hint">Reutilízalas para mantener la consistencia</span>
+          </div>
+          <ul class="sugerencias-lista">
+            @for (sugerencia of sugerencias(); track sugerencia.id_traduccion) {
+              <li class="sugerencia-card" [class.activa]="idSugerenciaUsada() === sugerencia.id_traduccion">
+                <div class="sugerencia-textos">
+                  <p class="sugerencia-original">{{ sugerencia.texto_original }}</p>
+                  <p class="sugerencia-traduccion"><i class="fa fa-long-arrow-right" aria-hidden="true"></i> {{ sugerencia.texto_traducido }}</p>
+                  <span class="sugerencia-meta">
+                    <time [attr.datetime]="sugerencia.fecha_creacion">{{ sugerencia.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}</time>
+                    · {{ sugerencia.similitud | percent: '1.0-0' }} de similitud
+                  </span>
+                </div>
+                <div class="sugerencia-acciones">
+                  <button type="button" class="sugerencia-usar" [disabled]="idSugerenciaUsada() === sugerencia.id_traduccion" (click)="usarSugerencia(sugerencia)">
+                    <i class="fa" [class.fa-check]="idSugerenciaUsada() === sugerencia.id_traduccion" [class.fa-arrow-up]="idSugerenciaUsada() !== sugerencia.id_traduccion" aria-hidden="true"></i>
+                    {{ idSugerenciaUsada() === sugerencia.id_traduccion ? 'En uso' : 'Usar' }}
+                  </button>
+                  <button type="button" class="icon-button" aria-label="Ignorar sugerencia" title="Ignorar" (click)="ignorarSugerencia(sugerencia)">
+                    <i class="fa fa-times" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (listaAlternativas().length > 0) {
+        <section class="panel extra-panel alternativas-panel" aria-labelledby="alternativas-title">
+          <div class="extra-panel-header">
+            <h2 id="alternativas-title" class="section-title">
+              <i class="fa fa-clone" aria-hidden="true"></i> Alternativas de traducción
+            </h2>
+            <span class="extra-panel-hint">Haz clic en una opción para usarla</span>
+          </div>
+          <div class="alternativas-grid">
+            @for (alt of listaAlternativas(); track alt.traduccion) {
+              <button
+                type="button"
+                class="alternativa-card"
+                [class.activa]="resultado === alt.traduccion"
+                (click)="seleccionarAlternativa(alt)"
+                title="Usar como traducción principal"
+              >
+                <div class="alternativa-top">
+                  <span class="alternativa-texto">{{ alt.traduccion }}</span>
+                  <span class="alternativa-badge">
+                    <i class="fa" [class.fa-check]="resultado === alt.traduccion" [class.fa-arrow-up]="resultado !== alt.traduccion" aria-hidden="true"></i>
+                  </span>
+                </div>
+                @if (alt.explicacion) {
+                  <p class="alternativa-desc">{{ alt.explicacion }}</p>
+                }
+              </button>
+            }
+          </div>
+        </section>
+      }
+
+      @if (listaModismos().length > 0) {
+        <section class="panel extra-panel modismos-panel" aria-labelledby="modismos-title">
+          <div class="extra-panel-header">
+            <h2 id="modismos-title" class="section-title">
+              <i class="fa fa-lightbulb-o" aria-hidden="true"></i> Modismos y expresiones culturales
+            </h2>
+          </div>
+          <div class="modismos-grid">
+            @for (mod of listaModismos(); track mod.expresion) {
+              <article class="modismo-card">
+                <div class="modismo-header">
+                  <span class="modismo-tag"><i class="fa fa-quote-left" aria-hidden="true"></i> Expresión</span>
+                  <strong class="modismo-expresion">"{{ mod.expresion }}"</strong>
+                </div>
+                <div class="modismo-body">
+                  <div class="modismo-dato">
+                    <span class="modismo-etiqueta">Significado:</span>
+                    <span class="modismo-texto">{{ mod.significado }}</span>
+                  </div>
+                  @if (mod.equivalente) {
+                    <div class="modismo-dato modismo-equivalente-box">
+                      <span class="modismo-etiqueta">Equivalente:</span>
+                      <strong class="modismo-equivalente">{{ mod.equivalente }}</strong>
+                    </div>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        </section>
+      } @else if (explicacionesProcesadas() && resultado) {
+        <section class="panel extra-panel modismos-panel" aria-labelledby="modismos-vacio-title">
+          <div class="extra-panel-header">
+            <h2 id="modismos-vacio-title" class="section-title">
+              <i class="fa fa-lightbulb-o" aria-hidden="true"></i> Modismos y expresiones culturales
+            </h2>
+          </div>
+          <p class="modismos-vacio">No se encontraron expresiones que requieran explicación.</p>
+        </section>
+      }
+
+      <div class="bottom-grid">
+        <section class="panel support-panel" aria-labelledby="recent-title">
+          <div class="support-heading"><h2 id="recent-title" class="section-title"><i class="fa fa-clock-o" aria-hidden="true"></i> Traducciones recientes</h2>@if (recientes.length) { <button type="button" class="text-button" (click)="verTodo = !verTodo" [attr.aria-expanded]="verTodo">{{ verTodo ? 'Ver menos' : 'Ver todo' }}</button> }</div>
+          @if (recientes.length) {
+            <div class="recent-list">@for (item of recientes; track item.textoOriginal) {
+              <button class="recent-item" type="button"><span><strong>{{ item.textoOriginal }}</strong><span class="recent-meta">{{ item.idIdiomaOrigen }} → {{ item.idIdiomaDestino }} <time>{{ item.fechaCreacion }}</time></span></span><i class="fa fa-file-o" aria-hidden="true"></i></button>
+            }</div>
+          } @else {
+            <p class="empty-state">Todavía no tienes traducciones recientes.</p>
+          }
+        </section>
+      </div>
+    </div>
+
+    <aside class="panel configuration" aria-labelledby="config-title">
+      <h2 id="config-title" class="section-title"><i class="fa fa-cog" aria-hidden="true"></i> Configuración</h2>
+      <div class="configuration-grid">
+        <div class="context-fields">
+          <div class="select-grid">
+            <label>Contexto / Dominio
+              <span class="select-wrap">
+                <i class="fa fa-briefcase" aria-hidden="true"></i>
+                <select [ngModel]="idContextoSeleccionado" (ngModelChange)="onContextoChange($event)">
+                  @for (ctx of contextos(); track ctx.id_contexto) {
+                    <option [ngValue]="ctx.id_contexto">{{ ctx.nombre }}</option>
+                  }
+                  <option [ngValue]="'NUEVO'">+ Nuevo contexto</option>
+                </select>
+              </span>
+            </label>
+            <label>Tono
+              <span class="select-wrap">
+                <i class="fa fa-commenting-o" aria-hidden="true"></i>
+                <select [ngModel]="idTonoSeleccionado" (ngModelChange)="onTonoChange($event)">
+                  @for (t of tonos(); track t.id_tono) {
+                    <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
+                  }
+                </select>
+              </span>
+            </label>
+            <label>Variante regional <span class="optional">(opcional)</span>
+              <span class="select-wrap">
+                <i class="fa fa-map-marker" aria-hidden="true"></i>
+                <select
+                  [ngModel]="idVarianteSeleccionada"
+                  (ngModelChange)="onVarianteChange($event)"
+                  [disabled]="variantesDisponibles.length === 0"
+                >
+                  <option [ngValue]="null">{{ variantesDisponibles.length === 0 ? 'Sin regiones para este idioma' : 'Sin preferencia' }}</option>
+                  @for (v of variantesDisponibles; track v.id_variante_regional) {
+                    <option [ngValue]="v.id_variante_regional">{{ v.nombre }}</option>
+                  }
+                </select>
+              </span>
+              @if (avisoVarianteLimpiada()) {
+                <small class="glosario-ayuda aviso-region"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ avisoVarianteLimpiada() }}</small>
+              }
+            </label>
+            <label>Glosario <span class="optional">(opcional)</span>
+              <span class="select-wrap">
+                <i class="fa fa-book" aria-hidden="true"></i>
+                <select [ngModel]="idGlosarioSeleccionado" (ngModelChange)="onGlosarioChange($event)">
+                  <option [ngValue]="null">Sin glosario</option>
+                  @for (g of glosariosDisponibles; track g.id_glosario) {
+                    <option [ngValue]="g.id_glosario">{{ g.nombre }} ({{ g.par_idiomas }})</option>
+                  }
+                </select>
+              </span>
+              @if (glosariosDisponibles.length === 0) {
+                <small class="glosario-ayuda">No tienes glosarios para este par de idiomas. <a routerLink="/glosarios">Crear glosario</a></small>
+              } @else if (terminosAplicados().length) {
+                <small class="glosario-ayuda"><i class="fa fa-check" aria-hidden="true"></i> Términos aplicados: {{ terminosAplicados().length }}</small>
+              }
+            </label>
+          </div>
+        </div>
+        <div class="options">
+          <h3>Otras opciones</h3>
+          <label class="toggle"><input type="checkbox" role="switch" [ngModel]="alternativas" (ngModelChange)="onAlternativasChange($event)"><span class="switch" aria-hidden="true"></span>Mostrar alternativas de traducción</label>
+          <label class="toggle"><input type="checkbox" role="switch" [ngModel]="modismos" (ngModelChange)="onModismosChange($event)"><span class="switch" aria-hidden="true"></span>Explicar modismos y expresiones</label>
+          @if (hayCambiosEnConfiguracion) {
+            <small class="glosario-ayuda"><i class="fa fa-info-circle" aria-hidden="true"></i> Los cambios se aplican solo a esta traducción hasta que los guardes como preferencia.</small>
+          }
+          <button class="translate-button" type="button" [disabled]="!hayCambiosEnConfiguracion || guardandoConfiguracion()" (click)="guardarConfiguracion()">
+            <i class="fa" [class.fa-floppy-o]="!guardandoConfiguracion()" [class.fa-spinner]="guardandoConfiguracion()" [class.fa-spin]="guardandoConfiguracion()" aria-hidden="true"></i>
+            {{ guardandoConfiguracion() ? 'Guardando...' : 'Guardar como preferencia' }}
+          </button>
+          <button class="text-button" type="button" [disabled]="restableciendoConfiguracion()" (click)="restablecerConfiguracion()">
+            <i class="fa fa-undo" aria-hidden="true"></i> Restablecer valores por defecto
+          </button>
+        </div>
+      </div>
+      @if (mensaje()) { <p class="status-message" role="status">{{ mensaje() }}</p> }
+    </aside>
+  </div>
+
+  @if (modalNuevoContextoAbierto()) {
+    <div class="modal-overlay" (click)="cancelarModalContexto()">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <h3 id="modal-title"><i class="fa fa-plus-circle" aria-hidden="true"></i> Nuevo contexto</h3>
+          <button type="button" class="icon-button modal-close" aria-label="Cerrar modal" (click)="cancelarModalContexto()">
+            <i class="fa fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="nombre-contexto">Nombre del contexto <span class="required">*</span></label>
+            <input
+              id="nombre-contexto"
+              type="text"
+              maxlength="100"
+              [(ngModel)]="nombreNuevoContexto"
+              placeholder="Ej. Técnico, Legal, Médico, Financiero..."
+              [disabled]="guardandoContexto()"
+            />
+          </div>
+
+          <div class="modal-field">
+            <label for="descripcion-contexto">Descripción <span class="required">*</span></label>
+            <textarea
+              id="descripcion-contexto"
+              maxlength="500"
+              [(ngModel)]="descripcionNuevoContexto"
+              placeholder="Describe las particularidades o vocabulario de este contexto..."
+              [disabled]="guardandoContexto()"
+            ></textarea>
+          </div>
+
+          @if (errorModal()) {
+            <p class="modal-error"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorModal() }}</p>
+          }
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancelar" (click)="cancelarModalContexto()" [disabled]="guardandoContexto()">
+            Cancelar
+          </button>
+          <button type="button" class="btn-guardar" (click)="guardarModalContexto()" [disabled]="!nombreNuevoContexto.trim() || !descripcionNuevoContexto.trim() || guardandoContexto()">
+            <i class="fa" [class.fa-check]="!guardandoContexto()" [class.fa-spinner]="guardandoContexto()" [class.fa-spin]="guardandoContexto()" aria-hidden="true"></i>
+            {{ guardandoContexto() ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>
+
+

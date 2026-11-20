@@ -1,0 +1,207 @@
+<main class="usuarios-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span>Administración</span><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Usuarios</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-users" aria-hidden="true"></i>
+      <div>
+        <h1>Gestión de usuarios</h1>
+        <p>Consulta las cuentas registradas, cambia su rol y suspende o reactiva su acceso.</p>
+      </div>
+    </div>
+    <button type="button" class="btn-ayuda" (click)="ayudaVisible.set(!ayudaVisible())" [attr.aria-expanded]="ayudaVisible()">
+      <i class="fa fa-question-circle" aria-hidden="true"></i> ¿Cómo funciona?
+    </button>
+  </header>
+
+  @if (ayudaVisible()) {
+    <aside class="info-panel">
+      <i class="fa fa-info-circle" aria-hidden="true"></i>
+      <span>Al <strong>suspender</strong> una cuenta, el usuario no puede iniciar sesión y se cierran sus sesiones activas; su información se conserva y puedes <strong>reactivarla</strong> cuando quieras. No puedes suspender tu propia cuenta ni quitarte el rol de Administrador.</span>
+    </aside>
+  }
+
+  @if (mensajeError()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ mensajeError() }}</p>
+  }
+  @if (mensajeExito()) {
+    <p class="estado-mensaje exito pagina-mensaje" role="status"><i class="fa fa-check-circle" aria-hidden="true"></i> {{ mensajeExito() }}</p>
+  }
+
+  <div class="usuarios-layout" [class.con-detalle]="detalle()">
+    <!-- LISTADO -->
+    <section class="panel" aria-label="Usuarios registrados">
+      <div class="filtros">
+        <label class="buscador">
+          <i class="fa fa-search" aria-hidden="true"></i>
+          <input type="search" placeholder="Buscar por nombre o correo..." aria-label="Buscar por nombre o correo" maxlength="100" [ngModel]="busqueda" (ngModelChange)="onBusquedaChange($event)" />
+        </label>
+        <select class="filtro-select" aria-label="Filtrar por rol" [(ngModel)]="idRolFiltro" (ngModelChange)="onFiltroChange()">
+          <option [ngValue]="null">Todos los roles</option>
+          @for (rol of roles(); track rol.id) {
+            <option [ngValue]="rol.id">{{ rol.nombre }}</option>
+          }
+        </select>
+        <select class="filtro-select" aria-label="Filtrar por estado" [(ngModel)]="estadoFiltro" (ngModelChange)="onFiltroChange()">
+          @for (opcion of opcionesEstado; track opcion.etiqueta) {
+            <option [ngValue]="opcion.valor">{{ opcion.etiqueta }}</option>
+          }
+        </select>
+        @if (hayFiltros) {
+          <button type="button" class="btn-secundario" (click)="limpiarFiltros()"><i class="fa fa-times" aria-hidden="true"></i> Limpiar</button>
+        }
+      </div>
+
+      <div class="tabla-wrap" [attr.aria-busy]="cargandoLista()">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th scope="col">Nombre</th>
+              <th scope="col">Correo</th>
+              <th scope="col">Rol</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Registro</th>
+              <th scope="col" class="col-acciones"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (cargandoLista()) {
+              <tr><td colspan="6" class="vacio"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando usuarios...</td></tr>
+            } @else {
+              @for (usuario of usuarios(); track usuario.id) {
+                <tr [class.seleccionado]="detalle()?.id === usuario.id">
+                  <td class="col-nombre">
+                    {{ usuario.nombre }}
+                    @if (esCuentaPropia(usuario)) { <span class="etiqueta-tu">Tú</span> }
+                  </td>
+                  <td>{{ usuario.correo }}</td>
+                  <td><span class="rol">{{ usuario.rol.nombre }}</span></td>
+                  <td><span [class]="'estado estado-' + usuario.estado.toLowerCase()">{{ etiquetaEstado(usuario.estado) }}</span></td>
+                  <td class="col-fecha">{{ usuario.fecha_creacion | date: 'dd/MM/yyyy' }}</td>
+                  <td class="col-acciones">
+                    <button type="button" class="btn-icono" [attr.aria-label]="'Ver detalle de ' + usuario.nombre" (click)="verDetalle(usuario.id)">
+                      <i class="fa fa-eye" aria-hidden="true"></i>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="vacio">{{ hayFiltros ? 'No se encontraron usuarios con esos filtros.' : 'No hay usuarios registrados.' }}</td></tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="detalle-footer">
+        <span>{{ total() }} {{ total() === 1 ? 'usuario' : 'usuarios' }}</span>
+        @if (totalPaginas() > 1) {
+          <nav class="paginacion" aria-label="Paginación">
+            <button type="button" aria-label="Página anterior" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)"><i class="fa fa-angle-left" aria-hidden="true"></i></button>
+            @for (numero of paginasVisibles; track numero) {
+              <button type="button" [class.activo]="numero === pagina()" [attr.aria-current]="numero === pagina() ? 'page' : null" (click)="irAPagina(numero)">{{ numero }}</button>
+            }
+            <button type="button" aria-label="Página siguiente" [disabled]="pagina() === totalPaginas()" (click)="irAPagina(pagina() + 1)"><i class="fa fa-angle-right" aria-hidden="true"></i></button>
+          </nav>
+        }
+      </footer>
+    </section>
+
+    <!-- DETALLE -->
+    @if (detalle(); as usuario) {
+      <aside class="panel detalle-panel" aria-labelledby="detalle-titulo">
+        <div class="detalle-header">
+          <div class="detalle-titulo">
+            <i class="fa fa-user-circle" aria-hidden="true"></i>
+            <div>
+              <h2 id="detalle-titulo">{{ usuario.nombre }}</h2>
+              <p>{{ usuario.correo }}</p>
+            </div>
+          </div>
+          <button type="button" class="btn-icono" aria-label="Cerrar detalle" (click)="cerrarDetalle()"><i class="fa fa-times" aria-hidden="true"></i></button>
+        </div>
+
+        @if (cargandoDetalle()) {
+          <p class="vacio"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando...</p>
+        }
+
+        <dl class="datos">
+          <div><dt>Estado</dt><dd><span [class]="'estado estado-' + usuario.estado.toLowerCase()">{{ etiquetaEstado(usuario.estado) }}</span></dd></div>
+          <div><dt>Rol</dt><dd>{{ usuario.rol.nombre }}</dd></div>
+          <div><dt>Registro</dt><dd>{{ usuario.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+          <div><dt>Último acceso</dt><dd>{{ usuario.ultimo_acceso ? (usuario.ultimo_acceso | date: 'dd/MM/yyyy HH:mm') : 'Nunca' }}</dd></div>
+          <div><dt>Sesiones activas</dt><dd>{{ usuario.sesiones_activas }}</dd></div>
+          @if (usuario.fecha_actualizacion) {
+            <div><dt>Última modificación</dt><dd>{{ usuario.fecha_actualizacion | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+          }
+        </dl>
+
+        <h3 class="subtitulo">Actividad</h3>
+        <ul class="actividad">
+          <li><i class="fa fa-language" aria-hidden="true"></i><strong>{{ usuario.total_traducciones }}</strong> traducciones</li>
+          <li><i class="fa fa-file-text-o" aria-hidden="true"></i><strong>{{ usuario.total_documentos }}</strong> documentos</li>
+          <li><i class="fa fa-comments-o" aria-hidden="true"></i><strong>{{ usuario.total_conversaciones }}</strong> conversaciones</li>
+          <li><i class="fa fa-book" aria-hidden="true"></i><strong>{{ usuario.total_glosarios }}</strong> glosarios</li>
+        </ul>
+
+        <h3 class="subtitulo">Rol</h3>
+        <div class="cambio-rol">
+          <select class="filtro-select" aria-label="Rol del usuario" [(ngModel)]="idRolSeleccionado" [disabled]="guardando() || esCuentaPropia(usuario)">
+            @for (rol of roles(); track rol.id) {
+              <option [ngValue]="rol.id">{{ rol.nombre }}</option>
+            }
+          </select>
+          <button type="button" class="btn-primario" [disabled]="rolSinCambios || guardando() || esCuentaPropia(usuario)" (click)="solicitarCambioRol()">
+            <i class="fa fa-floppy-o" aria-hidden="true"></i> Cambiar rol
+          </button>
+        </div>
+        @if (esCuentaPropia(usuario)) {
+          <p class="campo-ayuda"><i class="fa fa-lock" aria-hidden="true"></i> No puedes cambiar tu propio rol ni suspender tu cuenta.</p>
+        }
+
+        <h3 class="subtitulo">Acceso</h3>
+        @if (usuario.estado === 'SUSPENDIDO') {
+          <button type="button" class="btn-primario" [disabled]="guardando()" (click)="solicitarReactivacion()">
+            <i class="fa fa-unlock" aria-hidden="true"></i> Reactivar cuenta
+          </button>
+        } @else if (usuario.estado === 'ACTIVO') {
+          <button type="button" class="btn-peligro" [disabled]="guardando() || esCuentaPropia(usuario)" (click)="solicitarSuspension()">
+            <i class="fa fa-ban" aria-hidden="true"></i> Suspender cuenta
+          </button>
+        } @else {
+          <p class="campo-ayuda">La cuenta aún no verificó su correo; solo se pueden suspender cuentas activas.</p>
+        }
+      </aside>
+    }
+  </div>
+
+  <!-- CONFIRMACION -->
+  @if (accionPendiente(); as accion) {
+    <div class="modal-fondo" (click)="cancelarAccion()">
+      <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="modal-titulo" aria-describedby="modal-descripcion" (click)="$event.stopPropagation()">
+        @switch (accion.tipo) {
+          @case ('suspender') {
+            <h3 id="modal-titulo">¿Suspender la cuenta?</h3>
+            <p id="modal-descripcion"><strong>{{ accion.usuario.nombre }}</strong> no podrá iniciar sesión y se cerrarán sus sesiones activas. Su información se conserva.</p>
+          }
+          @case ('reactivar') {
+            <h3 id="modal-titulo">¿Reactivar la cuenta?</h3>
+            <p id="modal-descripcion"><strong>{{ accion.usuario.nombre }}</strong> podrá volver a iniciar sesión.</p>
+          }
+          @case ('rol') {
+            <h3 id="modal-titulo">¿Cambiar el rol?</h3>
+            <p id="modal-descripcion">El rol de <strong>{{ accion.usuario.nombre }}</strong> pasará de <strong>{{ accion.usuario.rol.nombre }}</strong> a <strong>{{ nombreRol(accion.idRol) }}</strong>.</p>
+          }
+        }
+        <div class="modal-acciones">
+          <button type="button" class="btn-secundario" [disabled]="guardando()" (click)="cancelarAccion()">Cancelar</button>
+          <button type="button" [class]="accion.tipo === 'suspender' ? 'btn-peligro' : 'btn-primario'" [disabled]="guardando()" (click)="confirmarAccion()">
+            @if (guardando()) { <i class="fa fa-spinner fa-spin" aria-hidden="true"></i> }
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

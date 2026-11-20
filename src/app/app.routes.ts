@@ -1,3 +1,161 @@
 import { Routes } from '@angular/router';
+import { InicioSesion } from './views/autenticacion/inicio_sesion/inicio_sesion';
+import { Registro } from './views/autenticacion/registro/registro';
+import { VerificarCorreo } from './views/autenticacion/verificar_correo/verificar_correo';
+import { RecuperacionContrasena } from './views/autenticacion/recuperacion_contrasena/recuperacion_contrasena.';
 
-export const routes: Routes = [];
+import { Inicio } from './views/aplicacion/inicio/inicio';
+import { Traduccion } from './views/aplicacion/traduccion/traduccion';
+import { Documentos } from './views/aplicacion/documentos/documentos';
+import { Historial } from './views/aplicacion/historial/historial';
+
+import { Autenticado } from './layouts/autenticado/autenticado';
+
+import { autenticacionGuard } from './core/guards/autenticacion.guard';
+import { Usuarios } from './views/administracion/usuarios/usuarios';
+import { Dashboard } from './views/administracion/dashboard/dashboard';
+import { Reportes } from './views/administracion/reportes/reportes';
+import { permisoGuard } from './core/guards/permiso.guard';
+import { Perfil } from './views/aplicacion/perfil/perfil';
+import { Glosarios } from './views/aplicacion/glosarios/glosarios';
+import { Conversaciones } from './views/aplicacion/conversaciones/conversaciones';
+import { ConversacionSesion } from './views/aplicacion/conversacion-sesion/conversacion-sesion';
+import { Preferencias } from './views/aplicacion/preferencias/preferencias';
+import { Integraciones } from './views/aplicacion/integraciones/integraciones';
+import { SesionExternaVista } from './views/aplicacion/sesion-externa/sesion-externa';
+
+export const routes: Routes = [
+  // ==========================
+  // RUTAS P�BLICAS
+  // ==========================
+
+  {
+    path: 'login',
+    component: InicioSesion,
+  },
+  {
+    path: 'registro',
+    component: Registro,
+  },
+  {
+    path: 'verificar_correo',
+    component: VerificarCorreo,
+  },
+  {
+    path: 'recuperar-password',
+    component: RecuperacionContrasena,
+  },
+  {
+    path: '',
+    redirectTo: 'login',
+    pathMatch: 'full',
+  },
+
+  // ==========================
+  // RUTAS AUTENTICADAS
+  // ==========================
+
+  {
+    path: '',
+    component: Autenticado,
+    canActivate: [autenticacionGuard],
+    children: [
+      {
+        path: 'traduccion',
+        component: Traduccion
+      },
+      {
+        path: 'documentos',
+        component: Documentos
+      },
+      {
+        path: 'historial',
+        component: Historial
+      },
+
+      {
+        path: 'inicio',
+        component: Inicio
+      },
+
+      {
+        path: 'glosarios',
+        component: Glosarios
+      },
+
+      {
+        path: 'conversaciones',
+        component: Conversaciones
+      },
+
+      {
+        path: 'conversaciones/nueva',
+        component: ConversacionSesion
+      },
+
+      {
+        path: 'conversaciones/:id',
+        component: ConversacionSesion
+      },
+
+      {
+        path: 'perfil',
+        component: Perfil
+      },
+
+      {
+        path: 'preferencias',
+        component: Preferencias
+      },
+
+      {
+        path: 'integraciones',
+        component: Integraciones
+      },
+
+      {
+        path: 'integraciones/sesiones/nueva',
+        component: SesionExternaVista
+      },
+
+      {
+        path: 'integraciones/sesiones/:id',
+        component: SesionExternaVista
+      },
+
+      {
+        path: 'administracion/usuarios',
+        component: Usuarios,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'gestionar_usuarios'
+        }
+      },
+
+      {
+        path: 'administracion/dashboard',
+        component: Dashboard,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'ver_dashboard'
+        }
+      },
+
+      {
+        path: 'administracion/reportes',
+        component: Reportes,
+        canActivate: [permisoGuard],
+        data: {
+          permiso: 'generar_reportes'
+        }
+      }
+
+    ]
+  },
+
+  {
+    path: '**',
+    redirectTo: 'login',
+  },
+
+];

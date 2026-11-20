@@ -1,0 +1,157 @@
+<main class="integraciones-page">
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a><i class="fa fa-angle-right" aria-hidden="true"></i><span aria-current="page">Integraciones</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-title">
+      <i class="fa fa-link" aria-hidden="true"></i>
+      <div>
+        <h1>Integraciones</h1>
+        <p>Vincula Google Meet y Zoom para traducir tus reuniones en tiempo real.</p>
+      </div>
+    </div>
+    <a class="btn-primario" routerLink="/integraciones/sesiones/nueva" [class.deshabilitado]="!hayVinculadas()" [attr.aria-disabled]="!hayVinculadas()" (click)="!hayVinculadas() && $event.preventDefault()" [title]="hayVinculadas() ? 'Configurar la traducción de una reunión' : 'Primero vincula una plataforma'">
+      <i class="fa fa-plus" aria-hidden="true"></i> Nueva sesión de reunión
+    </a>
+  </header>
+
+  @if (error()) {
+    <p class="estado-mensaje error pagina-mensaje" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ error() }}</p>
+  }
+  @if (mensaje()) {
+    <p class="estado-mensaje exito pagina-mensaje" role="status"><i class="fa fa-check-circle" aria-hidden="true"></i> {{ mensaje() }}</p>
+  }
+
+  <!-- PLATAFORMAS (HU-35) -->
+  <section aria-labelledby="titulo-plataformas">
+    <h2 id="titulo-plataformas" class="section-title"><i class="fa fa-plug" aria-hidden="true"></i> Plataformas compatibles</h2>
+    @if (cargando()) {
+      <p class="estado-mensaje"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando plataformas...</p>
+    } @else {
+      <div class="plataformas">
+        @for (plataforma of plataformas(); track plataforma.plataforma) {
+          <article class="panel plataforma" [class.vinculada]="plataforma.estado === 'vinculada'">
+            <div class="plataforma-cabecera">
+              <span class="plataforma-logo" [class.meet]="plataforma.plataforma === 'google_meet'" [class.zoom]="plataforma.plataforma === 'zoom'" aria-hidden="true">
+                <i class="fa fa-video-camera"></i>
+              </span>
+              <div class="plataforma-nombre">
+                <h3>{{ plataforma.nombre }}</h3>
+                @if (plataforma.cuenta_externa) {
+                  <small>{{ plataforma.cuenta_externa }}</small>
+                }
+              </div>
+              <span class="insignia" [class]="'insignia ' + (plataforma.configurada ? plataforma.estado : 'no_configurada')">{{ etiquetaConexion(plataforma) }}</span>
+            </div>
+
+            @if (!plataforma.configurada) {
+              <p class="plataforma-texto">El administrador aún no configuró las credenciales de {{ plataforma.nombre }} en el servidor.</p>
+            } @else if (plataforma.estado === 'vinculada') {
+              <p class="plataforma-texto">Vinculada {{ plataforma.fecha_vinculacion ? ('el ' + (plataforma.fecha_vinculacion | date: 'dd/MM/yyyy')) : '' }}. Ya puedes traducir reuniones de {{ plataforma.nombre }}.</p>
+            } @else if (plataforma.estado === 'expirada') {
+              <p class="plataforma-texto aviso">La autorización expiró. Vuelve a vincular la cuenta para seguir usándola.</p>
+            } @else {
+              <p class="plataforma-texto">Vincula tu cuenta mediante la pantalla oficial de {{ plataforma.nombre }}.</p>
+            }
+
+            <div class="plataforma-acciones">
+              @if (plataforma.estado === 'vinculada') {
+                <button type="button" class="btn-peligro" (click)="porDesvincular.set(plataforma)" [disabled]="procesando() !== null">
+                  <i class="fa fa-chain-broken" aria-hidden="true"></i> Desvincular
+                </button>
+              } @else {
+                <button type="button" class="btn-primario" (click)="porAutorizar.set(plataforma)" [disabled]="!plataforma.configurada || procesando() !== null">
+                  <i class="fa fa-link" aria-hidden="true"></i> {{ plataforma.estado === 'expirada' ? 'Volver a vincular' : 'Vincular' }}
+                </button>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- HISTORIAL DE SESIONES EXTERNAS -->
+  <section class="panel sesiones" aria-labelledby="titulo-sesiones">
+    <div class="sesiones-cabecera">
+      <h2 id="titulo-sesiones" class="section-title"><i class="fa fa-history" aria-hidden="true"></i> Sesiones de reuniones</h2>
+      <select aria-label="Filtrar por estado" [(ngModel)]="filtroEstado" (ngModelChange)="cargarSesiones()">
+        <option [ngValue]="null">Todas</option>
+        @for (estado of estados; track estado) {
+          <option [ngValue]="estado">{{ etiquetasEstado[estado] }}</option>
+        }
+      </select>
+    </div>
+
+    @if (cargandoSesiones()) {
+      <p class="estado-mensaje"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Cargando sesiones...</p>
+    } @else if (sesiones().length === 0) {
+      <div class="vacio">
+        <i class="fa fa-video-camera" aria-hidden="true"></i>
+        <p>{{ filtroEstado ? 'No hay sesiones con ese estado.' : 'Aún no tradujiste ninguna reunión.' }}</p>
+      </div>
+    } @else {
+      <ul class="sesiones-lista">
+        @for (s of sesiones(); track s.id_sesion_externa) {
+          <li>
+            <a class="sesion" [routerLink]="['/integraciones/sesiones', s.id_sesion_externa]">
+              <span class="sesion-plataforma">{{ s.nombre_plataforma }}</span>
+              <span class="sesion-datos">
+                <strong>{{ s.referencia_reunion }}</strong>
+                <small>{{ s.nombre_idioma_origen }} ↔ {{ s.nombre_idioma_destino }} · {{ s.nombre_entorno }} · {{ s.total_intervenciones }} {{ s.total_intervenciones === 1 ? 'intervención' : 'intervenciones' }}</small>
+              </span>
+              <time [attr.datetime]="s.fecha_creacion">{{ s.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}</time>
+              <span [class]="'insignia estado-' + s.estado">{{ etiquetasEstado[s.estado] }}</span>
+              <i class="fa fa-angle-right" aria-hidden="true"></i>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <!-- PERMISOS ANTES DE AUTORIZAR (HU-35) -->
+  @if (porAutorizar(); as plataforma) {
+    <div class="modal-overlay" (click)="procesando() === null && porAutorizar.set(null)">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="modal-permisos-titulo">
+        <div class="modal-header">
+          <h3 id="modal-permisos-titulo"><i class="fa fa-shield" aria-hidden="true"></i> Vincular {{ plataforma.nombre }}</h3>
+        </div>
+        <div class="modal-body">
+          <p>Te llevaremos a la pantalla oficial de {{ plataforma.nombre }}. TraduContext solo pedirá estos permisos:</p>
+          <ul class="permisos">
+            @for (permiso of plataforma.permisos; track permiso.alcance) {
+              <li><i class="fa fa-check" aria-hidden="true"></i> {{ permiso.descripcion }}</li>
+            }
+          </ul>
+          <p class="nota">TraduContext no puede unirse a tus reuniones ni cortarlas. El audio se captura solo cuando inicias el servicio y eliges la pestaña de la reunión.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secundario" (click)="porAutorizar.set(null)" [disabled]="procesando() !== null">Cancelar</button>
+          <button type="button" class="btn-primario" (click)="continuarAutorizacion()" [disabled]="procesando() !== null">
+            <i class="fa" [class.fa-external-link]="procesando() === null" [class.fa-spinner]="procesando() !== null" [class.fa-spin]="procesando() !== null" aria-hidden="true"></i>
+            Continuar a {{ plataforma.nombre }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (porDesvincular(); as plataforma) {
+    <div class="modal-overlay" (click)="procesando() === null && porDesvincular.set(null)">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="alertdialog" aria-modal="true" aria-labelledby="modal-desvincular-titulo">
+        <div class="modal-header">
+          <h3 id="modal-desvincular-titulo"><i class="fa fa-chain-broken" aria-hidden="true"></i> Desvincular {{ plataforma.nombre }}</h3>
+        </div>
+        <div class="modal-body">
+          <p>Se revocará el acceso de TraduContext a tu cuenta{{ plataforma.cuenta_externa ? ' ' + plataforma.cuenta_externa : '' }} y se eliminarán los tokens guardados. Tus sesiones anteriores se conservan.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secundario" (click)="porDesvincular.set(null)" [disabled]="procesando() !== null">Cancelar</button>
+          <button type="button" class="btn-peligro" (click)="desvincularConfirmado()" [disabled]="procesando() !== null">Desvincular</button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

@@ -1,0 +1,587 @@
+<main class="documentos-page">
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/inicio">Inicio</a>
+    <i class="fa fa-angle-right" aria-hidden="true"></i>
+    <span aria-current="page">Documentos</span>
+  </nav>
+
+  <!-- ENCABEZADO DE PÁGINA -->
+  <header class="page-header">
+    <div class="page-title">
+      <div class="header-icon-box" aria-hidden="true">
+        <i class="fa fa-file-text"></i>
+      </div>
+      <div>
+        <h1>Traducción de documentos</h1>
+        <p>Carga, traduce y descarga tus documentos manteniendo su formato.</p>
+      </div>
+    </div>
+    <button
+      class="help-button"
+      type="button"
+      (click)="abrirAyudaGuia()"
+      aria-label="Abrir Asistente Guía de TraduContext"
+    >
+      <i class="fa fa-question-circle" aria-hidden="true"></i>
+      ¿Cómo funciona?
+    </button>
+  </header>
+
+  <!-- PANEL DE AYUDA -->
+  @if (ayuda) {
+    <aside class="help-panel" id="panel-ayuda">
+      <div class="help-content">
+        <i class="fa fa-info-circle help-icon" aria-hidden="true"></i>
+        <div>
+          <strong>Flujo de trabajo para documentos:</strong>
+          <ol>
+            <li>Arrastra o selecciona tus archivos en formato <strong>PDF (.pdf)</strong>, <strong>Word (.docx)</strong> o <strong>Excel (.xlsx)</strong> hasta 20 MB.</li>
+            <li>Ajusta el <strong>Contexto</strong>, <strong>Tono</strong> y <strong>Localización cultural</strong> en el panel derecho.</li>
+            <li>Selecciona los idiomas en la tabla y presiona <strong>Traducir</strong> para generar el documento manteniendo su estructura.</li>
+            <li>Descarga el archivo resultante directamente desde la tabla de documentos traducidos.</li>
+          </ol>
+        </div>
+      </div>
+    </aside>
+  }
+
+  <!-- MENSAJES DE ESTADO / ALERTAS -->
+  @if (mensaje()) {
+    <div
+      class="alert-banner"
+      [class.alert-exito]="tipoMensaje() === 'exito'"
+      [class.alert-error]="tipoMensaje() === 'error'"
+      [class.alert-info]="tipoMensaje() === 'info'"
+      role="status"
+    >
+      <div class="alert-text">
+        <i
+          class="fa"
+          [class.fa-check-circle]="tipoMensaje() === 'exito'"
+          [class.fa-exclamation-circle]="tipoMensaje() === 'error'"
+          [class.fa-info-circle]="tipoMensaje() === 'info'"
+          aria-hidden="true"
+        ></i>
+        <span>{{ mensaje() }}</span>
+      </div>
+      <button type="button" class="alert-close" aria-label="Cerrar notificación" (click)="mensaje.set(null)">
+        <i class="fa fa-times" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+
+  <div class="workspace-layout">
+    <!-- COLUMNA PRINCIPAL -->
+    <div class="workspace-main">
+      <!-- ZONA DE CARGA DE ARCHIVOS (DROPZONE) -->
+      <section
+        class="dropzone-card"
+        [class.dragging]="isDragging()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <div class="dropzone-content">
+          <div class="cloud-icon-wrap" aria-hidden="true">
+            <i class="fa fa-cloud-upload"></i>
+          </div>
+          <h2 class="dropzone-title">Arrastra y suelta tu documento aquí</h2>
+          <p class="dropzone-sub">o selecciona un archivo desde tu dispositivo</p>
+
+          <button
+            type="button"
+            class="btn-seleccionar"
+            (click)="fileInput.click()"
+            [disabled]="subiendo()"
+          >
+            <i class="fa fa-folder-open-o" aria-hidden="true"></i>
+            {{ subiendo() ? 'Subiendo documento...' : 'Seleccionar archivo' }}
+          </button>
+
+          <input
+            #fileInput
+            type="file"
+            accept=".pdf,.docx,.xlsx"
+            (change)="onArchivoSeleccionado($event)"
+            hidden
+          />
+
+          <p class="dropzone-hint">
+            Formatos permitidos: PDF (.pdf), Word (.docx), Excel (.xlsx) &nbsp;|&nbsp; Tamaño máximo: 20 MB
+          </p>
+        </div>
+      </section>
+
+      <!-- TABLA 1: DOCUMENTOS CARGADOS -->
+      <section class="panel table-card" aria-labelledby="cargados-title">
+        <div class="table-header">
+          <h2 id="cargados-title" class="section-title">
+            <i class="fa fa-folder-open folder-icon" aria-hidden="true"></i>
+            Documentos cargados
+          </h2>
+          @if (cargandoCargados()) {
+            <span class="loading-tag"><i class="fa fa-spinner fa-spin"></i> Actualizando...</span>
+          }
+        </div>
+
+        <div class="table-container">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th class="th-check">
+                  <input
+                    type="checkbox"
+                    [checked]="todosCargadosSeleccionados"
+                    (change)="toggleTodosCargados($event)"
+                    aria-label="Seleccionar todos los documentos cargados"
+                  />
+                </th>
+                <th>Nombre del documento</th>
+                <th>Tipo</th>
+                <th>Tamaño</th>
+                <th>Fecha de carga</th>
+                <th>Idioma origen</th>
+                <th>Idioma destino</th>
+                <th>Estado</th>
+                <th class="th-acciones">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (documentosCargados().length === 0) {
+                <tr>
+                  <td colspan="9" class="td-empty">
+                    <i class="fa fa-folder-o empty-icon" aria-hidden="true"></i>
+                    <span>No hay documentos cargados todavía. Sube un archivo en la sección superior para comenzar.</span>
+                  </td>
+                </tr>
+              } @else {
+                @for (doc of documentosCargados(); track doc.id_documento) {
+                  <tr [class.row-selected]="doc.seleccionado">
+                    <td class="td-check">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="doc.seleccionado"
+                        aria-label="Seleccionar documento"
+                      />
+                    </td>
+                    <td class="td-nombre">
+                      <div class="doc-name-cell">
+                        @if (esWord(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-word" title="Documento Word" aria-hidden="true">
+                            <i class="fa fa-file-word-o"></i>
+                          </span>
+                        } @else if (esPdf(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-pdf" title="Documento PDF" aria-hidden="true">
+                            <i class="fa fa-file-pdf-o"></i>
+                          </span>
+                        } @else if (esExcel(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-excel" title="Documento Excel" aria-hidden="true">
+                            <i class="fa fa-file-excel-o"></i>
+                          </span>
+                        } @else {
+                          <span class="doc-type-icon icon-default" title="Documento" aria-hidden="true">
+                            <i class="fa fa-file-text-o"></i>
+                          </span>
+                        }
+                        <span class="doc-title" [title]="doc.nombre">{{ doc.nombre }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="badge-tipo"
+                        [class.badge-word]="esWord(doc.extension, doc.nombre)"
+                        [class.badge-pdf]="esPdf(doc.extension, doc.nombre)"
+                        [class.badge-excel]="esExcel(doc.extension, doc.nombre)"
+                      >
+                        {{ obtenerTipoDocumento(doc.extension, doc.nombre) }}
+                      </span>
+                    </td>
+                    <td class="td-tamano">{{ formatearTamano(doc.tamano) }}</td>
+                    <td class="td-fecha">{{ formatearFecha(doc.fecha_carga) }}</td>
+                    <td>
+                      <div class="table-select-wrap">
+                        <select
+                          [(ngModel)]="doc.idioma_origen_seleccionado"
+                          (ngModelChange)="validarGlosarioDocumento(doc)"
+                          aria-label="Idioma de origen para este documento"
+                        >
+                          @for (idm of idiomas(); track idm.codigo) {
+                            <option [value]="idm.codigo">{{ idm.nombre }}</option>
+                          }
+                        </select>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="table-select-wrap">
+                        <select
+                          [(ngModel)]="doc.idioma_destino_seleccionado"
+                          (ngModelChange)="validarGlosarioDocumento(doc)"
+                          aria-label="Idioma de destino para este documento"
+                        >
+                          @for (idm of idiomas(); track idm.codigo) {
+                            <option [value]="idm.codigo">{{ idm.nombre }}</option>
+                          }
+                        </select>
+                      </div>
+                      @if (glosariosPara(doc).length > 0) {
+                        <div class="table-select-wrap select-glosario">
+                          <select
+                            [(ngModel)]="doc.id_glosario_seleccionado"
+                            aria-label="Glosario a aplicar en este documento"
+                            title="Glosario a aplicar"
+                          >
+                            <option [ngValue]="null">Sin glosario</option>
+                            @for (g of glosariosPara(doc); track g.id_glosario) {
+                              <option [ngValue]="g.id_glosario">{{ g.nombre }}</option>
+                            }
+                          </select>
+                        </div>
+                      }
+                    </td>
+                    <td>
+                      <span class="badge-estado badge-listo">
+                        <i class="fa fa-check-circle" aria-hidden="true"></i> Listo
+                      </span>
+                    </td>
+                    <td class="td-acciones">
+                      <div class="actions-group">
+                        <button
+                          type="button"
+                          class="btn-action-traducir"
+                          (click)="traducirDocumento(doc)"
+                          [disabled]="doc.traduciendo"
+                        >
+                          <i
+                            class="fa"
+                            [class.fa-language]="!doc.traduciendo"
+                            [class.fa-spinner]="doc.traduciendo"
+                            [class.fa-spin]="doc.traduciendo"
+                            aria-hidden="true"
+                          ></i>
+                          <span>{{ doc.traduciendo ? 'Traduciendo...' : 'Traducir' }}</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-action-delete"
+                          (click)="eliminarDocumentoCargado(doc)"
+                          [disabled]="doc.eliminando"
+                          title="Eliminar documento cargado"
+                          aria-label="Eliminar documento cargado"
+                        >
+                          <i
+                            class="fa"
+                            [class.fa-trash-o]="!doc.eliminando"
+                            [class.fa-spinner]="doc.eliminando"
+                            [class.fa-spin]="doc.eliminando"
+                            aria-hidden="true"
+                          ></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TABLA 2: DOCUMENTOS TRADUCIDOS -->
+      <section class="panel table-card" aria-labelledby="traducidos-title">
+        <div class="table-header">
+          <h2 id="traducidos-title" class="section-title">
+            <i class="fa fa-language translate-icon" aria-hidden="true"></i>
+            Documentos traducidos
+          </h2>
+          @if (cargandoTraducidos()) {
+            <span class="loading-tag"><i class="fa fa-spinner fa-spin"></i> Actualizando...</span>
+          }
+        </div>
+
+        <div class="table-container">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th class="th-check">
+                  <input
+                    type="checkbox"
+                    [checked]="todosTraducidosSeleccionados"
+                    (change)="toggleTodosTraducidos($event)"
+                    aria-label="Seleccionar todos los documentos traducidos"
+                  />
+                </th>
+                <th>Nombre del documento</th>
+                <th>Tipo</th>
+                <th>Tamaño</th>
+                <th>Fecha de traducción</th>
+                <th>Idioma origen</th>
+                <th>Idioma destino</th>
+                <th>Estado</th>
+                <th class="th-acciones">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (documentosTraducidos().length === 0) {
+                <tr>
+                  <td colspan="9" class="td-empty">
+                    <i class="fa fa-file-text-o empty-icon" aria-hidden="true"></i>
+                    <span>No hay documentos traducidos disponibles todavía. Traduce un documento cargado para verlo aquí.</span>
+                  </td>
+                </tr>
+              } @else {
+                @for (doc of documentosTraducidos(); track doc.id_traduccion_documento) {
+                  <tr [class.row-selected]="doc.seleccionado">
+                    <td class="td-check">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="doc.seleccionado"
+                        aria-label="Seleccionar documento traducido"
+                      />
+                    </td>
+                    <td class="td-nombre">
+                      <div class="doc-name-cell">
+                        @if (esWord(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-word" title="Documento Word" aria-hidden="true">
+                            <i class="fa fa-file-word-o"></i>
+                          </span>
+                        } @else if (esPdf(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-pdf" title="Documento PDF" aria-hidden="true">
+                            <i class="fa fa-file-pdf-o"></i>
+                          </span>
+                        } @else if (esExcel(doc.extension, doc.nombre)) {
+                          <span class="doc-type-icon icon-excel" title="Documento Excel" aria-hidden="true">
+                            <i class="fa fa-file-excel-o"></i>
+                          </span>
+                        } @else {
+                          <span class="doc-type-icon icon-default" title="Documento" aria-hidden="true">
+                            <i class="fa fa-file-text-o"></i>
+                          </span>
+                        }
+                        <span class="doc-title" [title]="doc.nombre">{{ doc.nombre }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="badge-tipo"
+                        [class.badge-word]="esWord(doc.extension, doc.nombre)"
+                        [class.badge-pdf]="esPdf(doc.extension, doc.nombre)"
+                        [class.badge-excel]="esExcel(doc.extension, doc.nombre)"
+                      >
+                        {{ obtenerTipoDocumento(doc.extension, doc.nombre) }}
+                      </span>
+                    </td>
+                    <td class="td-tamano">{{ formatearTamano('1.2 MB') }}</td>
+                    <td class="td-fecha">{{ formatearFecha(doc.fecha) }}</td>
+                    <td class="td-idioma-text">{{ doc.nombre_idioma_origen || 'Español' }}</td>
+                    <td class="td-idioma-text">{{ doc.nombre_idioma_destino || 'Inglés' }}</td>
+                    <td>
+                      <span class="badge-estado badge-completado">
+                        <i class="fa fa-check-circle" aria-hidden="true"></i> Completado
+                      </span>
+                    </td>
+                    <td class="td-acciones">
+                      <div class="actions-group">
+                        <button
+                          type="button"
+                          class="btn-action-descargar"
+                          (click)="descargarDocumento(doc)"
+                          [disabled]="doc.descargando"
+                        >
+                          <i
+                            class="fa"
+                            [class.fa-download]="!doc.descargando"
+                            [class.fa-spinner]="doc.descargando"
+                            [class.fa-spin]="doc.descargando"
+                            aria-hidden="true"
+                          ></i>
+                          <span>{{ doc.descargando ? 'Descargando...' : 'Descargar' }}</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-action-delete"
+                          (click)="eliminarDocumentoTraducido(doc)"
+                          [disabled]="doc.eliminando"
+                          title="Eliminar documento traducido"
+                          aria-label="Eliminar documento traducido"
+                        >
+                          <i
+                            class="fa"
+                            [class.fa-trash-o]="!doc.eliminando"
+                            [class.fa-spinner]="doc.eliminando"
+                            [class.fa-spin]="doc.eliminando"
+                            aria-hidden="true"
+                          ></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- COLUMNA LATERAL: CONFIGURACIÓN DE TRADUCCIÓN -->
+    <aside class="panel configuration-card" aria-labelledby="config-title">
+      <div class="config-header">
+        <h2 id="config-title" class="section-title">
+          <i class="fa fa-cog config-gear-icon" aria-hidden="true"></i>
+          Configuración de traducción
+        </h2>
+      </div>
+
+      <div class="config-body">
+        <!-- Contexto / Escenario -->
+        <label class="field-label">
+          Contexto / Escenario
+          <div class="field-select-wrap">
+            <i class="fa fa-briefcase select-icon" aria-hidden="true"></i>
+            <select
+              [ngModel]="idContextoSeleccionado"
+              (ngModelChange)="onContextoChange($event)"
+              aria-label="Contexto o escenario de traducción"
+            >
+              @for (ctx of contextos(); track ctx.id_contexto) {
+                <option [ngValue]="ctx.id_contexto">{{ ctx.nombre }}</option>
+              }
+              <option [ngValue]="'NUEVO'">+ Nuevo contexto</option>
+            </select>
+          </div>
+        </label>
+
+        <!-- Tono -->
+        <label class="field-label">
+          Tono
+          <div class="field-select-wrap">
+            <i class="fa fa-commenting-o select-icon" aria-hidden="true"></i>
+            <select [(ngModel)]="idTonoSeleccionado" aria-label="Tono de traducción">
+              @for (t of tonos(); track t.id_tono) {
+                <option [ngValue]="t.id_tono">{{ t.nombre }}</option>
+              }
+            </select>
+          </div>
+        </label>
+
+        <!-- Localización cultural -->
+        <label class="field-label">
+          Localización cultural
+          <div class="field-select-wrap">
+            <i class="fa fa-map-marker select-icon" aria-hidden="true"></i>
+            <select [(ngModel)]="idVarianteSeleccionada" aria-label="Localización cultural">
+              <option [ngValue]="null">Sin preferencia</option>
+              @for (v of variantesDisponibles; track v.id_variante_regional) {
+                <option [ngValue]="v.id_variante_regional">{{ v.nombre }}</option>
+              }
+            </select>
+          </div>
+        </label>
+
+        <!-- Botón Guardar configuración -->
+        <button
+          type="button"
+          class="btn-guardar-config"
+          [disabled]="!hayCambiosEnConfiguracion || guardandoConfiguracion()"
+          (click)="guardarConfiguracion()"
+        >
+          <i
+            class="fa"
+            [class.fa-floppy-o]="!guardandoConfiguracion()"
+            [class.fa-spinner]="guardandoConfiguracion()"
+            [class.fa-spin]="guardandoConfiguracion()"
+            aria-hidden="true"
+          ></i>
+          <span>{{ guardandoConfiguracion() ? 'Guardando...' : 'Guardar' }}</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MODAL NUEVO CONTEXTO -->
+  @if (modalNuevoContextoAbierto()) {
+    <div class="modal-overlay" (click)="cancelarModalContexto()">
+      <div
+        class="modal-card"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <div class="modal-header">
+          <h3 id="modal-title">
+            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+            Nuevo contexto
+          </h3>
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Cerrar modal"
+            (click)="cancelarModalContexto()"
+          >
+            <i class="fa fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="nombre-contexto">Nombre del contexto <span class="required">*</span></label>
+            <input
+              id="nombre-contexto"
+              type="text"
+              maxlength="100"
+              [(ngModel)]="nombreNuevoContexto"
+              placeholder="Ej. Técnico, Legal, Médico, Financiero..."
+              [disabled]="guardandoContexto()"
+            />
+          </div>
+
+          <div class="modal-field">
+            <label for="descripcion-contexto">Descripción <span class="required">*</span></label>
+            <textarea
+              id="descripcion-contexto"
+              maxlength="500"
+              [(ngModel)]="descripcionNuevoContexto"
+              placeholder="Describe las particularidades o vocabulario de este contexto..."
+              [disabled]="guardandoContexto()"
+            ></textarea>
+          </div>
+
+          @if (errorModal()) {
+            <p class="modal-error">
+              <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+              {{ errorModal() }}
+            </p>
+          }
+        </div>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-modal-cancelar"
+            (click)="cancelarModalContexto()"
+            [disabled]="guardandoContexto()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-modal-guardar"
+            (click)="guardarModalContexto()"
+            [disabled]="!nombreNuevoContexto.trim() || !descripcionNuevoContexto.trim() || guardandoContexto()"
+          >
+            <i
+              class="fa"
+              [class.fa-check]="!guardandoContexto()"
+              [class.fa-spinner]="guardandoContexto()"
+              [class.fa-spin]="guardandoContexto()"
+              aria-hidden="true"
+            ></i>
+            {{ guardandoContexto() ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

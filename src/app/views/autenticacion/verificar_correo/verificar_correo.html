@@ -1,0 +1,84 @@
+<main class="verificacion-page">
+  <section
+    class="verificacion-card"
+    aria-labelledby="verificacion-titulo"
+  >
+    <div class="verificacion-header">
+      <h1 id="verificacion-titulo">Verifica tu correo</h1>
+
+      <p>
+        Enviamos un codigo de verificacion a
+        <strong>{{ correo }}</strong>
+      </p>
+    </div>
+
+    @if (mensajeError) {
+      <div class="error-alert" role="alert">
+        {{ mensajeError }}
+      </div>
+    }
+
+    @if (mensajeExito) {
+      <div class="success-alert" role="status">
+        {{ mensajeExito }}
+      </div>
+    }
+
+
+
+    <form
+      class="verificacion-form"
+      [formGroup]="verificacionForm"
+      (ngSubmit)="verificarCorreo()"
+      novalidate
+    >
+      <div class="form-field">
+        <label for="codigo">Codigo de verificacion</label>
+
+        <input
+          id="codigo"
+          type="text"
+          inputmode="numeric"
+          formControlName="codigo"
+          placeholder="000000"
+          autocomplete="one-time-code"
+          maxlength="6"
+          [class.input-error]="campoInvalido(codigo)"
+        />
+
+        @if (campoInvalido(codigo)) {
+          <small>
+            @if (codigo.hasError('required')) {
+              Ingresa el código de verificación.
+            } @else {
+              El código debe tener 6 dígitos.
+            }
+          </small>
+        }
+      </div>
+
+      <button class="primary-button" type="submit" [disabled]="verificacionForm.invalid || cargando">
+        {{ cargando ? 'Verificando...' : 'Verificar correo' }}
+      </button>
+    </form>
+
+    <div class="reenviar">
+      <p>¿No recibiste el código?</p>
+
+      <button
+        class="resend-button"
+        type="button"
+        (click)="reenviarCodigo()"
+        [disabled]="cargando"
+      >
+        {{ cargando ? 'Reenviando...' : 'Reenviar código' }}
+      </button>
+
+      @if (codeResent) {
+        <small class="success-message">
+          Se ha solicitado un nuevo código.
+        </small>
+      }
+    </div>
+  </section>
+</main>
