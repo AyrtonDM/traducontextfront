@@ -34,6 +34,11 @@
                   <button type="button" class="boton-push" (click)="activarPush()">Activar</button>
                 </div>
               }
+              @case ('sin-configuracion') {
+                <div class="aviso-push aviso-push--neutro">
+                  Los avisos del navegador no están configurados (falta la app web de Firebase en firebase.ts).
+                </div>
+              }
               @case ('bloqueado') {
                 <div class="aviso-push aviso-push--neutro">
                   Las notificaciones del navegador están bloqueadas. Puedes permitirlas desde la configuración del sitio.
