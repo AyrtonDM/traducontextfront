@@ -167,6 +167,8 @@ export interface RealizarTraduccionResultado {
   terminos_glosario_aplicados?: TerminoAplicado[];
   /** HU-44: traducciones anteriores similares del historial (maximo 3, de mayor a menor similitud) */
   sugerencias?: SugerenciaTraduccion[];
+  /** HU-34: correcciones del usuario consideradas en esta traduccion (0 si no se aplicaron) */
+  correcciones_aplicadas?: number;
 }
 
 /** Registro en el historial de una traduccion terminada (POST /traducciones/historial) */

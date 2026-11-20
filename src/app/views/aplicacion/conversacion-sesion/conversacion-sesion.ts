@@ -26,12 +26,18 @@ import {
   ActualizarConversacionSolicitud,
   Conversacion,
   ConversacionRespuesta,
+  ElementoAsistencia,
   EntornoItem,
   EstadoConversacion,
   ParticipanteConversacion,
+  ResultadoAsistencia,
+  SolicitudAsistencia,
+  TipoAsistencia,
 } from '../../../core/models/conversacion.model';
+import { GlosarioResumen } from '../../../core/models/glosario.model';
 import { ContextoItem, Idioma, TonoItem } from '../../../core/models/traduccion.model';
 import { ConversacionService } from '../../../core/services/conversacion.service';
+import { GlosarioService } from '../../../core/services/glosario.service';
 import { TraduccionService } from '../../../core/services/traduccion.service';
 
 type AccionEstado = 'pausar' | 'reanudar' | 'finalizar';
@@ -42,10 +48,20 @@ interface ConfiguracionFormulario {
   idEntorno: number | null;
   idContexto: number | null;
   idTono: number | null;
+  idGlosario: number | null;
   descripcionContexto: string;
   mantenerContexto: boolean;
   asistenciaConversacional: boolean;
 }
+
+/** Asistente (HU-30): pestañas del panel */
+export const ETIQUETAS_ASISTENCIA: Record<TipoAsistencia, string> = {
+  explicacion: 'Explicar',
+  sugerencias: 'Sugerir respuestas',
+  como_decir: '¿Cómo lo digo?',
+};
+
+const LONGITUD_MAXIMA_IDEA = 1000;
 
 /** Participante a mostrar: el real de la sesion o el que se creara al iniciar (solo lectura) */
 interface ParticipanteVista {
@@ -132,7 +148,7 @@ const ETIQUETAS_ESTADO_AUDIO: Record<EstadoAudio, string> = {
 
 /**
  * Pantalla "Conversación en tiempo real" (HU-23, HU-24, HU-29 configuracion, HU-31 participantes,
- * HU-28 reproduccion por voz manual y automatica).
+ * HU-28 reproduccion por voz manual y automatica, HU-32 glosario y HU-30 asistente).
  * /conversaciones/nueva: configura y crea la sesion. /conversaciones/:id: consulta y controla una sesion.
  */
 @Component({
@@ -149,6 +165,7 @@ const ETIQUETAS_ESTADO_AUDIO: Record<EstadoAudio, string> = {
 export class ConversacionSesion {
   private readonly conversacionService = inject(ConversacionService);
   private readonly traduccionService = inject(TraduccionService);
+  private readonly glosarioService = inject(GlosarioService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
@@ -163,6 +180,7 @@ export class ConversacionSesion {
   readonly contextos = signal<ContextoItem[]>([]);
   readonly tonos = signal<TonoItem[]>([]);
   readonly entornos = signal<EntornoItem[]>([]);
+  readonly glosarios = signal<GlosarioResumen[]>([]);
 
   readonly cargandoSesion = signal(false);
   readonly guardando = signal(false);
@@ -209,6 +227,53 @@ export class ConversacionSesion {
   private readonly listaMensajes = viewChild<ElementRef<HTMLElement>>('listaMensajes');
   private readonly entradaTexto = viewChild<ElementRef<HTMLTextAreaElement>>('entradaTexto');
   private contadorTemporal = 0;
+
+  // Asistente conversacional (HU-30): bajo demanda, no bloquea el envio de intervenciones
+  readonly asistenteAbierto = signal(false);
+  readonly tipoAsistencia = signal<TipoAsistencia>('explicacion');
+  /** Intervencion elegida desde un mensaje; null = la ultima traducida */
+  readonly idIntervencionAsistencia = signal<number | null>(null);
+  readonly ideaAsistencia = signal('');
+  readonly cargandoAsistencia = signal(false);
+  readonly errorAsistencia = signal('');
+  readonly resultadoAsistencia = signal<ResultadoAsistencia | null>(null);
+  readonly etiquetasAsistencia = ETIQUETAS_ASISTENCIA;
+  readonly tiposAsistencia: TipoAsistencia[] = ['explicacion', 'sugerencias', 'como_decir'];
+  readonly longitudMaximaIdea = LONGITUD_MAXIMA_IDEA;
+  /** Solo se muestra la respuesta de la ultima solicitud (las anteriores que lleguen tarde se ignoran) */
+  private solicitudAsistenciaActual = 0;
+
+  /** El asistente existe si la sesion lo tiene activado (guardado) y no esta finalizada */
+  readonly asistenteDisponible = computed(() => {
+    const actual = this.conversacion();
+    return !!actual && actual.asistencia_conversacional && actual.estado !== 'finalizada';
+  });
+
+  /** Intervencion sobre la que se explica o se sugiere: la elegida o la ultima traducida */
+  readonly intervencionAsistencia = computed(() => {
+    const traducidas = this.intervenciones().filter((i) => !i.temporal && i.estado === 'traducida');
+    const elegida = this.idIntervencionAsistencia();
+    if (elegida !== null) {
+      return traducidas.find((i) => i.id === elegida) ?? null;
+    }
+    return traducidas.at(-1) ?? null;
+  });
+
+  /** Quien dira la idea en "¿Cómo lo digo?": el hablante seleccionado en la barra de entrada */
+  readonly participanteIdea = computed(() => {
+    const hablante = this.idParticipanteHablante();
+    return this.participantesSesion().find((p) => p.id_participante === hablante) ?? null;
+  });
+
+  readonly puedePedirAsistencia = computed(() => {
+    if (!this.asistenteDisponible() || this.cargandoAsistencia()) {
+      return false;
+    }
+    if (this.tipoAsistencia() === 'como_decir') {
+      return !!this.participanteIdea() && this.ideaAsistencia().trim().length > 0;
+    }
+    return !!this.intervencionAsistencia();
+  });
 
   // Transcripcion por voz (HU-25)
   readonly avisoMicrofono = signal('');
@@ -264,6 +329,13 @@ export class ConversacionSesion {
           this.reconocimiento.detener();
           this.colaVoz.splice(0).forEach((fragmento) => this.conservarTextoVoz(fragmento.texto));
         });
+      }
+    });
+
+    // Si la asistencia se desactiva o la sesion se finaliza, el panel del asistente se cierra
+    effect(() => {
+      if (!this.asistenteDisponible()) {
+        untracked(() => this.cerrarAsistente());
       }
     });
 
@@ -342,6 +414,26 @@ export class ConversacionSesion {
     ];
   }
 
+  /**
+   * HU-32: glosarios del usuario para el par de idiomas de la conversacion, en cualquier sentido.
+   * Cada glosario se aplica solo a las intervenciones de su sentido (origen → destino).
+   */
+  get glosariosDisponibles(): GlosarioResumen[] {
+    const { idIdiomaOrigen, idIdiomaDestino } = this.formulario;
+    if (idIdiomaOrigen === null || idIdiomaDestino === null) {
+      return [];
+    }
+    return this.glosarios().filter(
+      (g) =>
+        (g.id_idioma_origen === idIdiomaOrigen && g.id_idioma_destino === idIdiomaDestino) ||
+        (g.id_idioma_origen === idIdiomaDestino && g.id_idioma_destino === idIdiomaOrigen),
+    );
+  }
+
+  get glosarioSeleccionado(): GlosarioResumen | null {
+    return this.glosariosDisponibles.find((g) => g.id_glosario === this.formulario.idGlosario) ?? null;
+  }
+
   /** Cambios pendientes de la sesion cargada, solo con los campos que difieren */
   get cambiosPendientes(): ActualizarConversacionSolicitud {
     const actual = this.conversacion();
@@ -358,6 +450,9 @@ export class ConversacionSesion {
     }
     if (f.idTono !== (actual.id_tono ?? null)) {
       cambios.id_tono = f.idTono;
+    }
+    if (f.idGlosario !== (actual.id_glosario ?? null)) {
+      cambios.id_glosario = f.idGlosario;
     }
     const descripcion = f.descripcionContexto.trim() || null;
     if (descripcion !== (actual.descripcion_contexto ?? null)) {
@@ -395,6 +490,11 @@ export class ConversacionSesion {
       next: (respuesta) => this.entornos.set(respuesta.resultado ?? []),
       error: (error) => this.mensajeError.set(this.extraerError(error, 'No se pudieron cargar los entornos.')),
     });
+    // HU-32: sin glosarios el selector solo ofrece "Sin glosario"
+    this.glosarioService.listar().subscribe({
+      next: (respuesta) => this.glosarios.set(respuesta.resultado ?? []),
+      error: () => this.glosarios.set([]),
+    });
     if (this.esNueva) {
       this.cargarPreferencias();
     }
@@ -420,6 +520,10 @@ export class ConversacionSesion {
         }
         if (f.idTono === null && pref.id_tono) {
           f.idTono = pref.id_tono;
+        }
+        // Solo se usa si corresponde a los idiomas elegidos (se comprueba al iniciar)
+        if (f.idGlosario === null && pref.id_glosario) {
+          f.idGlosario = pref.id_glosario;
         }
       },
       // Sin preferencias guardadas (404) el formulario queda vacio, como antes
@@ -489,6 +593,8 @@ export class ConversacionSesion {
         id_entorno: f.idEntorno,
         id_contexto: f.idContexto,
         id_tono: f.idTono,
+        // Un glosario de otro par (p. ej. de las preferencias) no se envia
+        id_glosario: this.glosarioSeleccionado?.id_glosario ?? null,
         descripcion_contexto: f.descripcionContexto.trim() || null,
         mantener_contexto: f.mantenerContexto,
         asistencia_conversacional: f.asistenciaConversacional,
@@ -930,6 +1036,114 @@ export class ConversacionSesion {
     }
   }
 
+  // ---------- Asistente conversacional (HU-30) ----------
+
+  alternarAsistente(): void {
+    if (this.asistenteAbierto()) {
+      this.cerrarAsistente();
+      return;
+    }
+    if (this.asistenteDisponible()) {
+      this.asistenteAbierto.set(true);
+    }
+  }
+
+  cerrarAsistente(): void {
+    // La respuesta de una solicitud en curso ya no se mostrara
+    this.solicitudAsistenciaActual++;
+    this.asistenteAbierto.set(false);
+    this.cargandoAsistencia.set(false);
+    this.errorAsistencia.set('');
+    this.resultadoAsistencia.set(null);
+    this.idIntervencionAsistencia.set(null);
+  }
+
+  elegirTipoAsistencia(tipo: TipoAsistencia): void {
+    if (tipo === this.tipoAsistencia()) {
+      return;
+    }
+    this.solicitudAsistenciaActual++;
+    this.cargandoAsistencia.set(false);
+    this.tipoAsistencia.set(tipo);
+    this.errorAsistencia.set('');
+    this.resultadoAsistencia.set(null);
+  }
+
+  /** Boton de cada mensaje: abre el asistente sobre esa intervencion y pide la explicacion */
+  asistirIntervencion(intervencion: IntervencionVista, tipo: TipoAsistencia): void {
+    if (!this.asistenteDisponible() || intervencion.temporal || intervencion.estado !== 'traducida') {
+      return;
+    }
+    this.asistenteAbierto.set(true);
+    this.tipoAsistencia.set(tipo);
+    this.idIntervencionAsistencia.set(intervencion.id);
+    this.pedirAsistencia();
+  }
+
+  /** Vuelve a usar la ultima intervencion traducida como referencia */
+  usarUltimaIntervencion(): void {
+    this.idIntervencionAsistencia.set(null);
+    this.resultadoAsistencia.set(null);
+  }
+
+  /**
+   * Pide la asistencia en segundo plano: no usa `enviando`, asi que se puede seguir escribiendo,
+   * dictando y enviando intervenciones mientras llega la respuesta.
+   */
+  pedirAsistencia(): void {
+    const actual = this.conversacion();
+    if (!actual || !this.puedePedirAsistencia()) {
+      return;
+    }
+    const tipo = this.tipoAsistencia();
+    const solicitud: SolicitudAsistencia = { tipo };
+    if (tipo === 'como_decir') {
+      solicitud.texto = this.ideaAsistencia().trim();
+      solicitud.id_participante = this.participanteIdea()?.id_participante ?? null;
+    } else {
+      solicitud.id_intervencion = this.intervencionAsistencia()?.id ?? null;
+    }
+
+    const numero = ++this.solicitudAsistenciaActual;
+    this.errorAsistencia.set('');
+    this.resultadoAsistencia.set(null);
+    this.cargandoAsistencia.set(true);
+    this.conversacionService.solicitarAsistencia(actual.id_conversacion, solicitud).subscribe({
+      next: (respuesta) => {
+        if (numero !== this.solicitudAsistenciaActual) {
+          return;
+        }
+        this.cargandoAsistencia.set(false);
+        this.resultadoAsistencia.set(respuesta.resultado);
+      },
+      error: (error) => {
+        if (numero !== this.solicitudAsistenciaActual) {
+          return;
+        }
+        this.cargandoAsistencia.set(false);
+        this.errorAsistencia.set(this.extraerError(error, 'No se pudo obtener la asistencia. Intenta de nuevo.'));
+        // 400: puede que la asistencia se haya desactivado o la sesion finalizado; se recarga el estado real.
+        // Un 404 puede referirse a la intervencion, asi que no se descarta la sesion por el.
+        if (error?.status === 400) {
+          this.manejarErrorSesion(error, actual.id_conversacion);
+        }
+      },
+    });
+  }
+
+  /** Lleva una frase sugerida a la caja de texto con su participante como hablante; no la envia */
+  usarSugerencia(elemento: ElementoAsistencia): void {
+    if (!this.sesionActiva()) {
+      return;
+    }
+    const idParticipante = this.resultadoAsistencia()?.id_participante;
+    if (idParticipante && idParticipante !== this.idParticipanteHablante()) {
+      this.seleccionarHablante(idParticipante);
+    }
+    this.textoIntervencion.set(elemento.texto.slice(0, LONGITUD_MAXIMA_INTERVENCION));
+    this.enfocarEntrada();
+  }
+
   /**
    * Tras un fallo de red/servidor se piden las intervenciones posteriores a la ultima conocida.
    * Si la enviada aparece, se limpia la caja para evitar un duplicado al reenviar.
@@ -1104,6 +1318,7 @@ export class ConversacionSesion {
       idEntorno: conversacion.id_entorno,
       idContexto: conversacion.id_contexto ?? null,
       idTono: conversacion.id_tono ?? null,
+      idGlosario: conversacion.id_glosario ?? null,
       descripcionContexto: conversacion.descripcion_contexto ?? '',
       mantenerContexto: conversacion.mantener_contexto,
       asistenciaConversacional: conversacion.asistencia_conversacional,
@@ -1153,6 +1368,7 @@ export class ConversacionSesion {
       idEntorno: null,
       idContexto: null,
       idTono: null,
+      idGlosario: null,
       descripcionContexto: '',
       mantenerContexto: true,
       asistenciaConversacional: false,

@@ -194,6 +194,38 @@ button { font: inherit; }
 .menu-voz-opcion.detener, .menu-voz-opcion.detener > i { color: var(--color-error); }
 .menu-voz-opcion .invisible, .menu-voz-opcion > i.invisible { visibility: hidden; }
 
+/* Asistente conversacional (HU-30): color propio para distinguirlo de la traduccion principal */
+:host { --asistente: #7C3AED; --asistente-suave: color-mix(in srgb, var(--asistente) 7%, var(--color-fondo)); --asistente-borde: color-mix(in srgb, var(--asistente) 35%, var(--color-fondo)); }
+.btn-asistente:not(:disabled) { cursor: pointer; border-color: var(--asistente-borde); color: var(--asistente); }
+.btn-asistente:hover:not(:disabled), .btn-asistente.activo { background: var(--asistente-suave); }
+.btn-asistente.activo { box-shadow: inset 0 0 0 1px var(--asistente); }
+.btn-asistir-mensaje { color: var(--asistente); }
+.btn-asistir-mensaje:hover:not(:disabled) { background: var(--asistente-suave); }
+.asistente-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px dashed var(--asistente-borde); border-left: 4px solid var(--asistente); border-radius: var(--radio-medio); background: var(--asistente-suave); color: var(--color-texto); font-size: 13px; }
+.asistente-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.asistente-cabecera h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 700; color: var(--asistente); }
+.asistente-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.asistente-tab { min-height: 30px; padding: 0 12px; border: 1px solid var(--asistente-borde); border-radius: 999px; background: var(--color-fondo); color: var(--asistente); font-size: 12px; font-weight: 600; cursor: pointer; }
+.asistente-tab.activo { background: var(--asistente); border-color: var(--asistente); color: #FFFFFF; }
+.asistente-solicitud { display: flex; flex-direction: column; gap: 8px; }
+.asistente-solicitud textarea { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--asistente-borde); border-radius: var(--radio-medio); background: var(--color-fondo); color: var(--color-texto); font: inherit; font-size: 13px; resize: vertical; }
+.asistente-solicitud textarea:focus { outline: none; border-color: var(--asistente); box-shadow: 0 0 0 3px color-mix(in srgb, var(--asistente) 15%, transparent); }
+.asistente-referencia { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; color: var(--color-texto-secundario); }
+.asistente-referencia q { color: var(--color-texto); font-style: italic; overflow-wrap: anywhere; }
+.btn-enlace { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border: 0; border-radius: 4px; background: transparent; color: var(--asistente); font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-enlace:hover { background: color-mix(in srgb, var(--asistente) 12%, var(--color-fondo)); }
+.btn-asistente-pedir { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; min-height: 34px; padding: 0 14px; border: 0; border-radius: var(--radio-medio); background: var(--asistente); color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-asistente-pedir:disabled { opacity: .5; cursor: not-allowed; }
+.asistente-resultado { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+.asistente-resultado:empty { display: none; }
+.asistente-resumen { margin: 0; padding: 8px 10px; border-radius: var(--radio-medio); background: var(--color-fondo); }
+.asistente-elementos { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.asistente-elemento { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--asistente-borde); border-radius: var(--radio-medio); background: var(--color-fondo); }
+.asistente-elemento p { margin: 0; overflow-wrap: anywhere; }
+.asistente-frase { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.asistente-traduccion { color: var(--color-texto-secundario); }
+.asistente-nota { color: var(--color-texto-secundario); font-size: 12px; font-style: italic; }
+
 /* Modal de confirmacion (patron de historial) */
 .modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(2px); }
 .modal-card { display: flex; flex-direction: column; width: 100%; max-width: 460px; overflow: hidden; border-radius: 12px; background: var(--color-fondo); box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2); }

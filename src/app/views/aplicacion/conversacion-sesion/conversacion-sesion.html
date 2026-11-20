@@ -24,7 +24,7 @@
   @if (ayudaVisible()) {
     <aside class="info-panel">
       <i class="fa fa-info-circle" aria-hidden="true"></i>
-      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje o, con <strong>Reproducción por voz: Automática</strong>, oír cada traducción nueva al llegar (no se lee mientras el micrófono está encendido). También puedes pulsar el <strong>micrófono</strong> y hablar: verás la transcripción mientras hablas y cada frase se enviará como intervención de quien esté seleccionado. El asistente se habilitará en una próxima etapa.</span>
+      <span>Elige los idiomas, el entorno, el contexto y el tono, y pulsa <strong>Iniciar conversación</strong>. El Participante 1 habla el primer idioma y el Participante 2 el segundo. Mientras la sesión no esté finalizada puedes cambiar su configuración (excepto los idiomas), pausarla, reanudarla o detenerla. Con la sesión activa, elige quién habla, escribe su intervención y pulsa <strong>Enter</strong>: verás el original y la traducción, que puedes escuchar con el botón de altavoz de cada mensaje o, con <strong>Reproducción por voz: Automática</strong>, oír cada traducción nueva al llegar (no se lee mientras el micrófono está encendido). También puedes pulsar el <strong>micrófono</strong> y hablar: verás la transcripción mientras hablas y cada frase se enviará como intervención de quien esté seleccionado. Si eliges un <strong>glosario</strong>, se aplica a las intervenciones en su mismo sentido de idiomas. Con <strong>Asistencia conversacional</strong> activada y guardada, el botón <strong>Asistente</strong> (o la bombilla de cada mensaje) explica lo dicho, sugiere respuestas y recomienda cómo expresar una idea según el entorno, sin detener la conversación.</span>
     </aside>
   }
 
@@ -127,6 +127,28 @@
           </span>
         </label>
 
+        <label class="campo">Glosario <span class="opcional">(opcional)</span>
+          <span class="select-icono">
+            <i class="fa fa-book" aria-hidden="true"></i>
+            <select
+              name="idGlosario"
+              [ngModel]="glosarioSeleccionado?.id_glosario ?? null"
+              (ngModelChange)="formulario.idGlosario = $event"
+              [disabled]="!configuracionEditable || guardando() || glosariosDisponibles.length === 0"
+            >
+              <option [ngValue]="null">Sin glosario</option>
+              @for (glosario of glosariosDisponibles; track glosario.id_glosario) {
+                <option [ngValue]="glosario.id_glosario">{{ glosario.nombre }} ({{ glosario.par_idiomas }})</option>
+              }
+            </select>
+          </span>
+          @if (glosarioSeleccionado; as glosario) {
+            <small class="campo-ayuda">Se aplica a las intervenciones {{ glosario.par_idiomas }}; en el sentido contrario se traduce sin glosario.</small>
+          } @else if (formulario.idIdiomaOrigen !== null && formulario.idIdiomaDestino !== null && glosariosDisponibles.length === 0) {
+            <small class="campo-ayuda">No tienes glosarios para estos idiomas. Puedes crearlos en <a routerLink="/glosarios">Glosarios</a>.</small>
+          }
+        </label>
+
         <div class="opciones">
           <h3>Otras opciones</h3>
           <label class="toggle">
@@ -139,7 +161,7 @@
             <input type="checkbox" role="switch" name="asistenciaConversacional" [(ngModel)]="formulario.asistenciaConversacional" [disabled]="!configuracionEditable || guardando()">
             <span class="switch" aria-hidden="true"></span>
             Asistencia conversacional
-            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="El asistente (sugerencias de respuesta y aclaraciones) aún no está disponible. Por ahora solo se guarda esta preferencia."></i>
+            <i class="fa fa-info-circle info-opcion" aria-hidden="true" title="Habilita el botón Asistente: explicaciones de lo dicho, sugerencias de respuesta y recomendaciones para expresar una idea según el entorno. Se usa solo cuando lo pides."></i>
           </label>
         </div>
 
@@ -205,6 +227,26 @@
                           >
                             <i class="fa" [class.fa-volume-up]="!estaReproduciendo(intervencion)" [class.fa-stop]="estaReproduciendo(intervencion)" aria-hidden="true"></i>
                           </button>
+                          @if (asistenteDisponible()) {
+                            <button
+                              type="button"
+                              class="btn-mini btn-asistir-mensaje"
+                              (click)="asistirIntervencion(intervencion, 'explicacion')"
+                              aria-label="Explicar con el asistente"
+                              title="Explicar con el asistente"
+                            >
+                              <i class="fa fa-lightbulb-o" aria-hidden="true"></i>
+                            </button>
+                            <button
+                              type="button"
+                              class="btn-mini btn-asistir-mensaje"
+                              (click)="asistirIntervencion(intervencion, 'sugerencias')"
+                              aria-label="Sugerir respuestas con el asistente"
+                              title="Sugerir respuestas"
+                            >
+                              <i class="fa fa-reply" aria-hidden="true"></i>
+                            </button>
+                          }
                         }
                       </div>
                     }
@@ -244,6 +286,111 @@
             </div>
           }
         </div>
+
+        <!-- ASISTENTE (HU-30): bajo demanda y con estilo propio, distinto de los mensajes -->
+        @if (asistenteAbierto() && asistenteDisponible()) {
+          <section id="panel-asistente" class="asistente-panel" aria-labelledby="titulo-asistente">
+            <div class="asistente-cabecera">
+              <h3 id="titulo-asistente"><i class="fa fa-magic" aria-hidden="true"></i> Asistente conversacional</h3>
+              <button type="button" class="btn-mini" (click)="cerrarAsistente()" aria-label="Cerrar asistente" title="Cerrar">
+                <i class="fa fa-times" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <div class="asistente-tabs" role="tablist" aria-label="Tipo de asistencia">
+              @for (tipo of tiposAsistencia; track tipo) {
+                <button
+                  type="button"
+                  role="tab"
+                  class="asistente-tab"
+                  [class.activo]="tipoAsistencia() === tipo"
+                  [attr.aria-selected]="tipoAsistencia() === tipo"
+                  (click)="elegirTipoAsistencia(tipo)"
+                >
+                  {{ etiquetasAsistencia[tipo] }}
+                </button>
+              }
+            </div>
+
+            <form class="asistente-solicitud" (ngSubmit)="pedirAsistencia()">
+              @if (tipoAsistencia() === 'como_decir') {
+                @if (participanteIdea(); as participante) {
+                  <p class="asistente-referencia">
+                    Lo dirá <strong>{{ participante.nombre }}</strong> en {{ participante.nombre_idioma || participante.codigo_idioma }}. Cambia quién habla en la barra de abajo.
+                  </p>
+                } @else {
+                  <p class="asistente-referencia">Elige quién habla en la barra de abajo para saber en qué idioma expresar la idea.</p>
+                }
+                <textarea
+                  name="ideaAsistencia"
+                  rows="2"
+                  [maxlength]="longitudMaximaIdea"
+                  aria-label="Idea que quieres expresar"
+                  placeholder="Escribe la idea con tus palabras, en cualquier idioma. Ej.: quiero pedir una semana más de plazo sin sonar descortés."
+                  [ngModel]="ideaAsistencia()"
+                  (ngModelChange)="ideaAsistencia.set($event)"
+                ></textarea>
+              } @else {
+                @if (intervencionAsistencia(); as referencia) {
+                  <div class="asistente-referencia">
+                    <span>{{ idIntervencionAsistencia() === null ? 'Última intervención' : 'Intervención elegida' }} · <strong>{{ referencia.nombre_participante || 'No identificado' }}</strong>:</span>
+                    <q [attr.lang]="referencia.codigo_idioma_origen">{{ referencia.texto_original }}</q>
+                    @if (idIntervencionAsistencia() !== null) {
+                      <button type="button" class="btn-enlace" (click)="usarUltimaIntervencion()">Usar la última</button>
+                    }
+                  </div>
+                } @else {
+                  <p class="asistente-referencia">Todavía no hay intervenciones traducidas. Cuando las haya, podrás pedir ayuda sobre ellas o usar los botones de cada mensaje.</p>
+                }
+              }
+              <button type="submit" class="btn-asistente-pedir" [disabled]="!puedePedirAsistencia()">
+                <i class="fa" [class.fa-magic]="!cargandoAsistencia()" [class.fa-spinner]="cargandoAsistencia()" [class.fa-spin]="cargandoAsistencia()" aria-hidden="true"></i>
+                {{ cargandoAsistencia() ? 'Consultando...' : 'Pedir ayuda' }}
+              </button>
+            </form>
+
+            <div class="asistente-resultado" aria-live="polite">
+              @if (errorAsistencia()) {
+                <p class="entrada-aviso error" role="alert"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{ errorAsistencia() }}</p>
+              } @else if (resultadoAsistencia(); as resultado) {
+                @if (resultado.resumen) {
+                  <p class="asistente-resumen" [attr.lang]="resultado.codigo_idioma">{{ resultado.resumen }}</p>
+                }
+                @if (resultado.elementos.length > 0) {
+                  <ul class="asistente-elementos">
+                    @for (elemento of resultado.elementos; track $index) {
+                      <li class="asistente-elemento">
+                        @if (resultado.tipo === 'explicacion') {
+                          <p class="asistente-expresion"><strong>{{ elemento.texto }}</strong>@if (elemento.traduccion) { <span class="asistente-traduccion"> → {{ elemento.traduccion }}</span>}</p>
+                          @if (elemento.nota) {
+                            <p class="asistente-nota" [attr.lang]="resultado.codigo_idioma">{{ elemento.nota }}</p>
+                          }
+                        } @else {
+                          <div class="asistente-frase">
+                            <p [attr.lang]="resultado.codigo_idioma"><strong>{{ elemento.texto }}</strong></p>
+                            @if (sesionActiva()) {
+                              <button type="button" class="btn-enlace" (click)="usarSugerencia(elemento)" [title]="'Escribirla como intervención de ' + (resultado.nombre_participante || 'este participante')">
+                                <i class="fa fa-pencil" aria-hidden="true"></i> Usar
+                              </button>
+                            }
+                          </div>
+                          @if (elemento.traduccion) {
+                            <p class="asistente-traduccion">{{ elemento.traduccion }}</p>
+                          }
+                          @if (elemento.nota) {
+                            <p class="asistente-nota" [attr.lang]="resultado.codigo_idioma">{{ elemento.nota }}</p>
+                          }
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else if (resultado.tipo === 'explicacion') {
+                  <p class="asistente-nota">No hay expresiones ni referencias especiales que aclarar.</p>
+                }
+              }
+            </div>
+          </section>
+        }
 
         <!-- ENTRADA DE TEXTO -->
         <form class="entrada-intervencion" (ngSubmit)="enviarIntervencion()" aria-label="Escribir intervención">
@@ -398,7 +545,16 @@
           </div>
 
           <div class="controles-derecha">
-            <button type="button" class="btn-asistente" disabled title="El asistente estará disponible próximamente">
+            <button
+              type="button"
+              class="btn-asistente"
+              [class.activo]="asistenteAbierto()"
+              (click)="alternarAsistente()"
+              [disabled]="!asistenteDisponible()"
+              [attr.aria-expanded]="asistenteAbierto()"
+              aria-controls="panel-asistente"
+              [title]="asistenteDisponible() ? 'Explicaciones, sugerencias de respuesta y cómo decir una idea' : soloLectura ? 'No disponible en una sesión finalizada' : 'Activa y guarda «Asistencia conversacional» en la configuración'"
+            >
               <i class="fa fa-magic" aria-hidden="true"></i> Asistente
             </button>
             <div class="menu-voz" #menuVoz>

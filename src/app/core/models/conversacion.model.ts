@@ -51,6 +51,10 @@ export interface Conversacion {
   nombre_entorno?: string | null;
   id_tono?: number | null;
   nombre_tono?: string | null;
+  /** HU-32: glosario de la sesion; se aplica solo en su sentido (par_idiomas_glosario, p. ej. "ES → EN") */
+  id_glosario?: number | null;
+  nombre_glosario?: string | null;
+  par_idiomas_glosario?: string | null;
   descripcion_contexto?: string | null;
   mantener_contexto: boolean;
   asistencia_conversacional: boolean;
@@ -76,6 +80,7 @@ export interface IniciarConversacionSolicitud {
   id_contexto?: number | null;
   id_entorno: number;
   id_tono?: number | null;
+  id_glosario?: number | null;
   descripcion_contexto?: string | null;
   mantener_contexto: boolean;
   asistencia_conversacional: boolean;
@@ -86,7 +91,52 @@ export interface ActualizarConversacionSolicitud {
   id_entorno?: number;
   id_contexto?: number | null;
   id_tono?: number | null;
+  id_glosario?: number | null;
   descripcion_contexto?: string | null;
   mantener_contexto?: boolean;
   asistencia_conversacional?: boolean;
+}
+
+/**
+ * Asistencia conversacional (HU-30), bajo demanda.
+ * - explicacion: explica una intervencion (expresiones, referencias, intencion) a quien la escucha.
+ * - sugerencias: posibles respuestas a una intervencion para quien la escucha.
+ * - como_decir: formas de expresar una idea en el idioma de un participante segun el entorno.
+ */
+export type TipoAsistencia = 'explicacion' | 'sugerencias' | 'como_decir';
+
+export interface SolicitudAsistencia {
+  tipo: TipoAsistencia;
+  /** Sin valor se usa la ultima intervencion traducida */
+  id_intervencion?: number | null;
+  /** Obligatorio en 'como_decir' */
+  id_participante?: number | null;
+  /** Idea a expresar, obligatoria en 'como_decir' */
+  texto?: string | null;
+}
+
+/** En 'explicacion': texto = expresion y nota = explicacion. En el resto: texto = frase propuesta. */
+export interface ElementoAsistencia {
+  texto: string;
+  traduccion?: string | null;
+  nota?: string | null;
+}
+
+export interface ResultadoAsistencia {
+  tipo: TipoAsistencia;
+  id_conversacion: number;
+  id_intervencion?: number | null;
+  /** Participante que diria las frases propuestas (sugerencias y como_decir) */
+  id_participante?: number | null;
+  nombre_participante?: string | null;
+  /** Idioma en que esta redactada la asistencia */
+  codigo_idioma?: string | null;
+  nombre_idioma?: string | null;
+  resumen?: string | null;
+  elementos: ElementoAsistencia[];
+}
+
+export interface AsistenciaRespuesta {
+  mensaje: string;
+  resultado: ResultadoAsistencia;
 }

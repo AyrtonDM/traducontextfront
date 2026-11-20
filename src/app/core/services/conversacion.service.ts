@@ -4,12 +4,14 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ActualizarConversacionSolicitud,
+  AsistenciaRespuesta,
   ConversacionRespuesta,
   ConversacionesRespuesta,
   EntornosRespuesta,
   EstadoConversacion,
   IniciarConversacionSolicitud,
   ParticipanteRespuesta,
+  SolicitudAsistencia,
 } from '../models/conversacion.model';
 import {
   CrearIntervencionSolicitud,
@@ -112,5 +114,13 @@ export class ConversacionService {
       `${this.apiUrl}/${idConversacion}/intervenciones/${idIntervencion}/reintentar`,
       {},
     );
+  }
+
+  /**
+   * Asistencia conversacional bajo demanda (HU-30). No modifica la sesion.
+   * Endpoint: POST /api/v1/conversaciones/{id}/asistencia
+   */
+  solicitarAsistencia(idConversacion: number, datos: SolicitudAsistencia): Observable<AsistenciaRespuesta> {
+    return this.http.post<AsistenciaRespuesta>(`${this.apiUrl}/${idConversacion}/asistencia`, datos);
   }
 }

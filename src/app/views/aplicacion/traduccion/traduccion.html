@@ -46,14 +46,35 @@
         <div class="language-field"><i class="fa fa-globe" aria-hidden="true"></i><select aria-label="Idioma de traducción" [ngModel]="destino" (ngModelChange)="onDestinoChange($event)">@for (idioma of idiomas(); track idioma.codigo) { <option [value]="idioma.codigo">{{ idioma.nombre }}</option> }</select></div>
       </div>
       <div class="text-box result-box">
-        <p aria-live="polite" [class.traduciendo]="cargando()">
-          @if (cargando() && !resultado) {
-            <span class="cargando-texto"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...</span>
-          } @else {
-            {{ resultado || 'Tu traducción aparecerá aquí.' }}
-          }
-        </p>
+        @if (editandoResultado()) {
+          <!-- HU-34: correccion manual del resultado -->
+          <div class="correccion-edicion">
+            <textarea
+              aria-label="Corregir la traducción"
+              rows="4"
+              maxlength="5000"
+              [(ngModel)]="textoEditado"
+              (keydown.escape)="cancelarEdicion()"
+              (keydown.control.enter)="guardarCorreccion()"
+            ></textarea>
+            <div class="correccion-acciones">
+              <button type="button" class="correccion-cancelar" (click)="cancelarEdicion()">Cancelar</button>
+              <button type="button" class="correccion-guardar" [disabled]="!textoEditado.trim() || guardandoCorreccion()" (click)="guardarCorreccion()">
+                <i class="fa fa-check" aria-hidden="true"></i> Guardar corrección
+              </button>
+            </div>
+          </div>
+        } @else {
+          <p aria-live="polite" [class.traduciendo]="cargando()">
+            @if (cargando() && !resultado) {
+              <span class="cargando-texto"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Traduciendo...</span>
+            } @else {
+              {{ resultado || 'Tu traducción aparecerá aquí.' }}
+            }
+          </p>
+        }
         <div class="result-tools">
+          <button class="icon-button" type="button" aria-label="Corregir traducción" title="Corregir: el sistema aprenderá tu versión" [disabled]="!puedeEditarResultado || editandoResultado()" (click)="editarResultado()"><i class="fa fa-pencil" aria-hidden="true"></i></button>
           <button class="icon-button" type="button" aria-label="Marcar como favorito en esta vista" [attr.aria-pressed]="favorito" [disabled]="!resultado" (click)="favorito = !favorito"><i class="fa" [class.fa-star]="favorito" [class.fa-star-o]="!favorito" aria-hidden="true"></i></button>
           <button class="icon-button" type="button" aria-label="Copiar traducción" [disabled]="!resultado" (click)="copiar()"><i class="fa fa-file-o" aria-hidden="true"></i></button>
           <button class="icon-button" type="button" aria-label="Escuchar traducción" [disabled]="!resultado" (click)="escuchar()"><i class="fa fa-volume-up" aria-hidden="true"></i></button>
@@ -85,6 +106,13 @@
             {{ estadoHistorial() === 'guardado' ? 'Guardado' : 'Guardar en historial' }}
           </button>
       </div>
+      @if (correccionesAplicadas() > 0 && resultado && !editandoResultado()) {
+        <p class="aviso-traduccion aviso-aprendizaje" role="status">
+          <i class="fa fa-graduation-cap" aria-hidden="true"></i>
+          Se consideraron tus preferencias aprendidas ({{ correccionesAplicadas() }} {{ correccionesAplicadas() === 1 ? 'corrección' : 'correcciones' }}).
+          <a routerLink="/preferencias">Gestionar</a>
+        </p>
+      }
       @if (avisoVoz()) {
         <p class="aviso-traduccion aviso-voz" role="status">
           <i class="fa fa-volume-off" aria-hidden="true"></i> {{ avisoVoz() }}

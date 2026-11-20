@@ -20,6 +20,8 @@ import {
   VarianteRegionalItem
 } from '../../../core/models/traduccion.model';
 import { GlosarioResumen, TerminoAplicado } from '../../../core/models/glosario.model';
+import { TipoCorreccion } from '../../../core/models/aprendizaje.model';
+import { AprendizajeService } from '../../../core/services/aprendizaje.service';
 import { GlosarioService } from '../../../core/services/glosario.service';
 import { TraduccionService } from '../../../core/services/traduccion.service';
 import { VozService } from '../../../core/services/voz.service';
@@ -33,6 +35,7 @@ import { VozService } from '../../../core/services/voz.service';
 export class Traduccion {
   private readonly traduccionService = inject(TraduccionService);
   private readonly glosarioService = inject(GlosarioService);
+  private readonly aprendizajeService = inject(AprendizajeService);
   texto = '';
   resultado = '';
   origen = '';
@@ -67,6 +70,14 @@ export class Traduccion {
   // Reutilizacion de traducciones (HU-44)
   readonly sugerencias = signal<SugerenciaTraduccion[]>([]);
   readonly idSugerenciaUsada = signal<number | null>(null);
+
+  // Aprendizaje de preferencias (HU-34)
+  /** Ultima traduccion recibida del servidor (antes de elegir alternativas o corregir) */
+  private ultimaTraduccion: { texto: string; generada: string; idiomaOrigen: string; idiomaDestino: string } | null = null;
+  readonly editandoResultado = signal(false);
+  textoEditado = '';
+  readonly guardandoCorreccion = signal(false);
+  readonly correccionesAplicadas = signal(0);
 
   // Preferencias guardadas del usuario (HU-33). Lo que se cambia en pantalla se aplica solo
   // a la traduccion actual hasta que el usuario lo guarde como preferencia.
@@ -256,6 +267,14 @@ export class Traduccion {
         this.explicacionesProcesadas.set(respuesta.resultado.explicaciones_procesadas ?? false);
         this.sugerencias.set(respuesta.resultado.sugerencias ?? []);
         this.idSugerenciaUsada.set(null);
+        this.correccionesAplicadas.set(respuesta.resultado.correcciones_aplicadas ?? 0);
+        this.editandoResultado.set(false);
+        this.ultimaTraduccion = {
+          texto: respuesta.resultado.texto_origen,
+          generada: respuesta.resultado.traduccion,
+          idiomaOrigen: respuesta.resultado.idioma_origen,
+          idiomaDestino: respuesta.resultado.idioma_destino,
+        };
         this.pendienteHistorial = {
           texto: respuesta.resultado.texto_origen,
           idiomaOrigen: respuesta.resultado.idioma_origen,
@@ -277,6 +296,7 @@ export class Traduccion {
         this.estadoRegion.set(null);
         this.explicacionesProcesadas.set(false);
         this.sugerencias.set([]);
+        this.correccionesAplicadas.set(0);
       }
     });
   }
@@ -498,6 +518,9 @@ export class Traduccion {
     this.sugerencias.set([]);
     this.idSugerenciaUsada.set(null);
     this.estadoHistorial.set(null);
+    this.ultimaTraduccion = null;
+    this.editandoResultado.set(false);
+    this.correccionesAplicadas.set(0);
     this.favorito = false;
     this.mensaje.set('');
     this.cargando.set(false);
@@ -648,7 +671,86 @@ export class Traduccion {
 
   seleccionarAlternativa(alt: AlternativaTraduccion): void {
     this.resultado = alt.traduccion;
+    this.editandoResultado.set(false);
+    // HU-34: la alternativa elegida se registra como preferencia (en segundo plano, sin avisos)
+    this.registrarAprendizaje('alternativa', alt.traduccion, false);
     this.guardarEnHistorial();
+  }
+
+  // ---------- Aprendizaje de preferencias (HU-34) ----------
+
+  /** Se puede corregir la traduccion recibida mientras el texto de origen no haya cambiado */
+  get puedeEditarResultado(): boolean {
+    return (
+      !!this.resultado.trim() &&
+      !!this.ultimaTraduccion &&
+      this.ultimaTraduccion.texto === this.texto.trim() &&
+      !this.cargando()
+    );
+  }
+
+  editarResultado(): void {
+    if (!this.puedeEditarResultado) {
+      return;
+    }
+    this.textoEditado = this.resultado;
+    this.editandoResultado.set(true);
+  }
+
+  cancelarEdicion(): void {
+    this.editandoResultado.set(false);
+  }
+
+  /** Usa la version corregida como resultado, la registra para aprender y la guarda en el historial */
+  guardarCorreccion(): void {
+    const corregida = this.textoEditado.trim();
+    if (!corregida || this.guardandoCorreccion()) {
+      return;
+    }
+    this.editandoResultado.set(false);
+    if (corregida === this.resultado.trim()) {
+      return;
+    }
+    this.resultado = corregida;
+    this.registrarAprendizaje('correccion', corregida, true);
+    this.guardarEnHistorial();
+  }
+
+  private registrarAprendizaje(tipo: TipoCorreccion, corregida: string, avisar: boolean): void {
+    const ultima = this.ultimaTraduccion;
+    if (!ultima || ultima.texto !== this.texto.trim() || corregida.trim() === ultima.generada.trim()) {
+      return;
+    }
+    if (avisar) {
+      this.guardandoCorreccion.set(true);
+    }
+    this.aprendizajeService
+      .registrarCorreccion({
+        tipo,
+        texto_original: ultima.texto,
+        traduccion_generada: ultima.generada,
+        traduccion_corregida: corregida,
+        idioma_origen: ultima.idiomaOrigen,
+        idioma_destino: ultima.idiomaDestino,
+      })
+      .subscribe({
+        next: (respuesta) => {
+          this.guardandoCorreccion.set(false);
+          if (avisar) {
+            this.mensaje.set(
+              respuesta.resultado
+                ? 'Corrección guardada. Se tendrá en cuenta en tus próximas traducciones.'
+                : 'Se usó tu corrección. El aprendizaje está desactivado, así que no se registró (puedes activarlo en Preferencias).',
+            );
+          }
+        },
+        error: (error) => {
+          this.guardandoCorreccion.set(false);
+          if (avisar) {
+            this.mensaje.set(error?.error?.mensaje || 'Se usó tu corrección, pero no se pudo registrar para el aprendizaje.');
+          }
+        },
+      });
   }
 
   /** HU-44: usa una traduccion anterior como resultado */

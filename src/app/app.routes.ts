@@ -20,6 +20,9 @@ import { Perfil } from './views/aplicacion/perfil/perfil';
 import { Glosarios } from './views/aplicacion/glosarios/glosarios';
 import { Conversaciones } from './views/aplicacion/conversaciones/conversaciones';
 import { ConversacionSesion } from './views/aplicacion/conversacion-sesion/conversacion-sesion';
+import { Preferencias } from './views/aplicacion/preferencias/preferencias';
+import { Integraciones } from './views/aplicacion/integraciones/integraciones';
+import { SesionExternaVista } from './views/aplicacion/sesion-externa/sesion-externa';
 
 export const routes: Routes = [
   // ==========================
@@ -98,6 +101,26 @@ export const routes: Routes = [
       {
         path: 'perfil',
         component: Perfil
+      },
+
+      {
+        path: 'preferencias',
+        component: Preferencias
+      },
+
+      {
+        path: 'integraciones',
+        component: Integraciones
+      },
+
+      {
+        path: 'integraciones/sesiones/nueva',
+        component: SesionExternaVista
+      },
+
+      {
+        path: 'integraciones/sesiones/:id',
+        component: SesionExternaVista
       },
 
       {
