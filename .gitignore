@@ -44,7 +44,7 @@ __screenshots__/
 Thumbs.db
 
 # Credenciales y claves de Firebase (no versionar)
-/src/environments/firebase.ts
-google-services.json
-*firebase-adminsdk*.json
+# /src/environments/firebase.ts
+# google-services.json
+# *firebase-adminsdk*.json
 .env
