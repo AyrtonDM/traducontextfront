@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type { Messaging } from 'firebase/messaging';
@@ -17,6 +17,10 @@ export type EstadoPushWeb =
 
 const RUTA_SONIDO = '/sonidos/notificacion.wav';
 
+/** "Ahora no" en el aviso de activacion: no se vuelve a pedir durante este tiempo */
+const CLAVE_AVISO_POSPUESTO = 'traducontext.avisoPushPospuesto';
+const DIAS_AVISO_POSPUESTO = 7;
+
 /**
  * Notificaciones push del navegador con Firebase Cloud Messaging.
  * El token FCM se registra en el backend (POST /dispositivos) y se elimina al cerrar sesion.
@@ -31,6 +35,19 @@ export class PushWebService {
   private static readonly CLAVE_TOKEN = 'fcm_token_web';
 
   readonly estado = signal<EstadoPushWeb>('pendiente');
+
+  /** El usuario eligio "Ahora no" hace menos de DIAS_AVISO_POSPUESTO dias */
+  private readonly avisoPospuesto = signal(this.leerAvisoPospuesto());
+  /** Ya se comprobo soporte y permiso (evita mostrar el aviso un instante antes de saberlo) */
+  private readonly comprobado = signal(false);
+
+  /**
+   * Aviso visible tras iniciar sesion para pedir la activacion. El permiso solo se puede pedir
+   * desde un clic (Chrome y Edge lo bloquean sin gesto), por eso es un boton y no se pide solo.
+   */
+  readonly debePedirActivacion = computed(
+    () => this.comprobado() && this.estado() === 'pendiente' && !this.avisoPospuesto(),
+  );
 
   private messaging: Messaging | null = null;
   private escuchandoMensajes = false;
@@ -56,6 +73,17 @@ export class PushWebService {
     if (Notification.permission === 'granted') {
       await this.registrar();
     }
+    this.comprobado.set(true);
+  }
+
+  /** "Ahora no": se vuelve a ofrecer pasados unos dias (sigue disponible en la campana). */
+  posponerAviso(): void {
+    try {
+      localStorage.setItem(CLAVE_AVISO_POSPUESTO, String(Date.now()));
+    } catch {
+      // Sin almacenamiento: solo se oculta en esta sesion.
+    }
+    this.avisoPospuesto.set(true);
   }
 
   /** Debe llamarse desde un clic del usuario (los navegadores bloquean el permiso sin gesto). */
@@ -176,6 +204,15 @@ export class PushWebService {
     this.sonido.currentTime = 0;
     // Si el navegador lo bloquea (sin interaccion previa con la pagina) solo queda la notificacion
     void this.sonido.play().catch(() => undefined);
+  }
+
+  private leerAvisoPospuesto(): boolean {
+    try {
+      const fecha = Number(localStorage.getItem(CLAVE_AVISO_POSPUESTO));
+      return Boolean(fecha) && Date.now() - fecha < DIAS_AVISO_POSPUESTO * 24 * 60 * 60 * 1000;
+    } catch {
+      return false;
+    }
   }
 
   private configuracionCompleta(): boolean {

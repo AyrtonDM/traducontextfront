@@ -44,3 +44,11 @@
 .item--no-leida .item-titulo { font-weight: 600; }
 .item-cuerpo { font-size: 11px; color: var(--color-texto-secundario); overflow-wrap: anywhere; }
 .item-fecha { font-size: 10px; color: var(--color-texto-secundario); }
+
+/* Aviso para activar las notificaciones del navegador (se pide con un clic) */
+.pedir-push { position: fixed; right: var(--espaciado-md); bottom: var(--espaciado-md); z-index: 1200; width: min(380px, calc(100vw - 32px)); display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--espaciado-sm) 12px; padding: var(--espaciado-md); background: var(--color-fondo); border: 1px solid color-mix(in srgb, var(--color-primario) 15%, var(--color-fondo)); border-radius: var(--radio-medio); box-shadow: var(--sombra-suave); font-size: 13px; color: var(--color-texto); }
+.pedir-push-icono { width: 22px; height: 22px; flex-shrink: 0; color: var(--color-primario); }
+.pedir-push-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pedir-push-texto span { color: var(--color-texto-secundario); font-size: 12px; }
+.pedir-push-acciones { width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.pedir-push .boton-push { font-size: 12px; padding: 6px 14px; }

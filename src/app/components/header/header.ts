@@ -80,6 +80,10 @@ export class Header implements OnInit, OnDestroy {
     void this.pushWeb.activar();
   }
 
+  posponerPush(): void {
+    this.pushWeb.posponerAviso();
+  }
+
   fechaRelativa(fechaIso: string): string {
     const fecha = new Date(fechaIso);
     const segundos = Math.round((Date.now() - fecha.getTime()) / 1000);

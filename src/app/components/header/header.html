@@ -44,6 +44,11 @@
                   Las notificaciones del navegador están bloqueadas. Puedes permitirlas desde la configuración del sitio.
                 </div>
               }
+              @case ('no-soportado') {
+                <div class="aviso-push aviso-push--neutro">
+                  Este navegador no admite avisos aquí. Abre la página en localhost o con HTTPS.
+                </div>
+              }
               @case ('error') {
                 <div class="aviso-push aviso-push--neutro">
                   <span>No se pudieron activar los avisos del navegador.</span>
@@ -93,4 +98,20 @@
       </div>
     </div>
   </div>
+
+  @if (pushWeb.debePedirActivacion()) {
+    <aside class="pedir-push" role="dialog" aria-labelledby="pedir-push-titulo" aria-describedby="pedir-push-texto">
+      <svg class="pedir-push-icono" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="pedir-push-texto">
+        <strong id="pedir-push-titulo">¿Activar las notificaciones?</strong>
+        <span id="pedir-push-texto">Te avisaremos de mensajes de chat y documentos traducidos aunque no tengas la página abierta.</span>
+      </div>
+      <div class="pedir-push-acciones">
+        <button type="button" class="enlace" (click)="posponerPush()">Ahora no</button>
+        <button type="button" class="boton-push" (click)="activarPush()">Activar</button>
+      </div>
+    </aside>
+  }
 </header>
