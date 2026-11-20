@@ -131,6 +131,8 @@ export class PushWebService {
 
   private async soportado(): Promise<boolean> {
     try {
+      // Sin la configuracion de la app web en firebase.ts el push queda desactivado
+      if (!firebaseConfig.apiKey || !firebaseConfig.appId || !vapidKey) return false;
       if (!('Notification' in window) || !('serviceWorker' in navigator)) return false;
       const { isSupported } = await import('firebase/messaging');
       return await isSupported();
