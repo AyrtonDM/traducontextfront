@@ -6,11 +6,80 @@
     </label> -->
 
     <div class="header-actions">
-      <button class="icon-button" type="button" aria-label="Notificaciones">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+      <div class="notificaciones">
+        <button class="icon-button campana" type="button"
+          [attr.aria-label]="notificaciones.hayNoLeidas() ? 'Notificaciones, ' + contadorTexto + ' sin leer' : 'Notificaciones'"
+          [attr.aria-expanded]="panelAbierto()" aria-haspopup="true" (click)="alternarPanel()">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          @if (notificaciones.hayNoLeidas()) {
+            <span class="contador" aria-hidden="true">{{ contadorTexto }}</span>
+          }
+        </button>
+
+        @if (panelAbierto()) {
+          <section class="panel" role="dialog" aria-label="Notificaciones">
+            <div class="panel-cabecera">
+              <h2>Notificaciones</h2>
+              <button type="button" class="enlace" [disabled]="!notificaciones.hayNoLeidas()" (click)="notificaciones.marcarTodas()">
+                Marcar todas como leídas
+              </button>
+            </div>
+
+            @switch (pushWeb.estado()) {
+              @case ('pendiente') {
+                <div class="aviso-push">
+                  <span>Recibe avisos aunque no tengas la página abierta.</span>
+                  <button type="button" class="boton-push" (click)="activarPush()">Activar</button>
+                </div>
+              }
+              @case ('bloqueado') {
+                <div class="aviso-push aviso-push--neutro">
+                  Las notificaciones del navegador están bloqueadas. Puedes permitirlas desde la configuración del sitio.
+                </div>
+              }
+              @case ('error') {
+                <div class="aviso-push aviso-push--neutro">
+                  <span>No se pudieron activar los avisos del navegador.</span>
+                  <button type="button" class="enlace" (click)="activarPush()">Reintentar</button>
+                </div>
+              }
+            }
+
+            @if (notificaciones.error()) {
+              <div class="panel-estado panel-estado--error" role="alert">
+                <span>{{ notificaciones.error() }}</span>
+                <button type="button" class="enlace" (click)="notificaciones.cargar()">Reintentar</button>
+              </div>
+            }
+
+            @if (notificaciones.cargando() && notificaciones.notificaciones().length === 0) {
+              <p class="panel-estado">Cargando notificaciones...</p>
+            } @else if (!notificaciones.error() && notificaciones.notificaciones().length === 0) {
+              <p class="panel-estado">No tienes notificaciones.</p>
+            } @else {
+              <ul class="lista">
+                @for (notificacion of notificaciones.notificaciones(); track notificacion.id_notificacion) {
+                  <li>
+                    <button type="button" class="item" [class.item--no-leida]="!notificacion.leida" (click)="abrirNotificacion(notificacion)">
+                      <span class="punto" aria-hidden="true"></span>
+                      <span class="item-texto">
+                        <span class="item-titulo">{{ notificacion.titulo }}</span>
+                        <span class="item-cuerpo">{{ notificacion.cuerpo }}</span>
+                        <span class="item-fecha">
+                          {{ fechaRelativa(notificacion.fecha_creacion) }}
+                          @if (!notificacion.leida) { · Sin leer }
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+      </div>
 
       <div class="perfil-mini" aria-label="Perfil del usuario">
         <span class="perfil-badge">{{ iniciales }}</span>

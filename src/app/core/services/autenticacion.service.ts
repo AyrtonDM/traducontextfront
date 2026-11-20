@@ -1,7 +1,7 @@
 ﻿import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, from, of } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
   RegistroUsuario,
@@ -11,6 +11,8 @@ import {
   PerfilUsuarioRespuesta,
   UsuarioAutenticado,
 } from '../models/autenticacion.model';
+import { PushWebService } from './push-web.service';
+import { NotificacionesService } from './notificaciones.service';
 
 @Injectable({
   providedIn: 'root'
@@ -19,6 +21,8 @@ export class AutenticacionService {
 
   private http = inject(HttpClient);
   private apiUrl = environment.apiUrl;
+  private pushWeb = inject(PushWebService);
+  private notificaciones = inject(NotificacionesService);
 
   // Usuario actual reactivo: header y sidebar se actualizan al editar el perfil
   readonly usuarioActual = signal<UsuarioAutenticado | null>(this.obtenerUsuarioActual());
@@ -157,9 +161,13 @@ export class AutenticacionService {
   }
 
   cerrarSesion(): Observable<unknown> {
-    return this.http.post<unknown>(
-      `${this.apiUrl}/autenticacion/cerrar-sesion`,
-      {}
+    // Primero se quita el dispositivo push (aun con token) para no recibir avisos de esta cuenta
+    this.notificaciones.detener();
+    return from(this.pushWeb.desregistrar()).pipe(
+      switchMap(() => this.http.post<unknown>(
+        `${this.apiUrl}/autenticacion/cerrar-sesion`,
+        {}
+      ))
     );
   }
 }
